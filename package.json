@@ -1,0 +1,25 @@
+{
+  "name": "asmr3d-spatial-renderer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:mobile": "node tools/build_mobile.mjs",
+    "cap:add:android": "cap add android",
+    "cap:sync": "cap sync android",
+    "apk:release": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/build_android.ps1",
+    "exe:release": "node tools/build_exe.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.2",
+    "@capacitor/core": "8.5.2",
+    "@capacitor/filesystem": "8.1.4",
+    "@capacitor/share": "8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.2",
+    "@electron/packager": "^20.3.0",
+    "electron": "^44.5.1",
+    "png-to-ico": "^3.0.2"
+  }
+}

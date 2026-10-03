@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>asmr3d空间渲染器 v0.1测试版</title>
+    <link rel="icon" href="data:," />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">ASMR3D / SPATIAL AUDIO RENDERER</p>
+        <h1>asmr3d空间渲染器</h1>
+      </div>
+      <div class="topbar-status">
+        <span class="version-badge">v0.1 测试版</span>
+        <div class="engine-state" id="engineState">待机</div>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="control-rail" aria-label="渲染控制">
+        <section class="section-block source-section">
+          <div class="section-heading">
+            <h2>声音对象</h2>
+            <span id="sourceBadge">未加载</span>
+          </div>
+
+          <label class="field">
+            <span>步骤 1 素材</span>
+            <select id="sampleSelect"></select>
+          </label>
+
+          <label class="field file-field">
+            <span>本地单声道文件</span>
+            <input id="fileInput" type="file" accept="audio/*" />
+          </label>
+
+          <div class="transport-row">
+            <button id="playButton" class="primary-button" type="button">播放</button>
+            <button id="pauseButton" type="button">暂停</button>
+            <button id="stopButton" type="button">停止</button>
+            <label class="check-control">
+              <input id="loopToggle" type="checkbox" checked />
+              <span>循环</span>
+            </label>
+          </div>
+        </section>
+
+        <section class="section-block">
+          <div class="section-heading">
+            <h2>渲染方式</h2>
+            <span>实时切换</span>
+          </div>
+          <div class="segmented" id="modeControl" role="radiogroup" aria-label="渲染方式">
+            <button type="button" data-mode="binaural" class="active">双耳兼容（推荐！）</button>
+            <button type="button" data-mode="hrtf">浏览器 HRTF</button>
+            <button type="button" data-mode="parametric">参数化 HRTF</button>
+            <button type="button" data-mode="bypass">Bypass</button>
+          </div>
+          <p class="inline-note" id="modeNote">
+            保留原始左右声道，适合 KU100、假人头和普通立体声成品。
+          </p>
+        </section>
+
+        <section class="section-block">
+          <div class="section-heading">
+            <h2>空间参数</h2>
+            <button id="resetButton" class="link-button" type="button">复位</button>
+          </div>
+
+          <label class="range-field">
+            <span>方位角 <output id="azimuthOutput">0°</output></span>
+            <input id="azimuth" type="range" min="-90" max="90" step="0.1" value="0" />
+            <small>−90° 左 / 0° 前 / +90° 右</small>
+          </label>
+
+          <label class="range-field">
+            <span>仰角 <output id="elevationOutput">0°</output></span>
+            <input id="elevation" type="range" min="-30" max="30" step="0.1" value="0" />
+            <small>−30° 下 / 0° 水平 / +30° 上</small>
+          </label>
+
+          <label class="range-field">
+            <span>距离 <output id="distanceOutput">0.40 m</output></span>
+            <input id="distance" type="range" min="0" max="1000" step="1" value="203" />
+            <small>对数映射，0.2～10 m</small>
+          </label>
+
+          <label class="range-field">
+            <span>输出音量 <output id="volumeOutput">80%</output></span>
+            <input id="volume" type="range" min="0" max="100" step="1" value="80" />
+          </label>
+        </section>
+
+        <section class="section-block export-section">
+          <div class="section-heading">
+            <h2>导出成品音频</h2>
+            <span>WAV</span>
+          </div>
+
+          <label class="field">
+            <span>导出范围</span>
+            <select id="exportScopeSelect">
+              <option value="full" selected>完整文件（离线渲染）</option>
+              <option value="segment">指定片段（实时捕获）</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>起点</span>
+            <select id="exportStartSelect" disabled>
+              <option value="current">当前播放进度</option>
+              <option value="zero">文件开头</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>导出时长</span>
+            <select id="exportDurationSelect" disabled>
+              <option value="5">5 秒</option>
+              <option value="15" selected>15 秒</option>
+              <option value="30">30 秒</option>
+              <option value="60">60 秒</option>
+              <option value="120">120 秒</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>WAV 位深</span>
+            <select id="exportBitDepth">
+              <option value="16" selected>16-bit PCM</option>
+              <option value="24">24-bit PCM</option>
+            </select>
+          </label>
+
+          <div class="export-actions">
+            <button id="exportButton" class="primary-button" type="button">开始导出</button>
+            <button id="cancelExportButton" type="button" disabled>取消</button>
+          </div>
+          <progress id="exportProgress" max="1" value="0"></progress>
+          <p class="inline-note" id="exportStatus">
+            实时捕获当前渲染结果，导出耗时与片段长度相同。
+          </p>
+        </section>
+
+        <section class="section-block">
+          <div class="section-heading">
+            <h2>对象元数据</h2>
+            <span>只读</span>
+          </div>
+          <dl class="metadata-list">
+            <div><dt>文件</dt><dd id="metaFile">-</dd></div>
+            <div><dt>类别</dt><dd id="metaCategory">-</dd></div>
+            <div><dt>声道</dt><dd id="metaChannels">-</dd></div>
+            <div><dt>采样率</dt><dd id="metaSampleRate">-</dd></div>
+            <div><dt>时长</dt><dd id="metaDuration">-</dd></div>
+            <div><dt>许可</dt><dd id="metaLicense">-</dd></div>
+          </dl>
+        </section>
+      </aside>
+
+      <section class="stage" aria-label="播放与渲染状态">
+        <div class="stage-heading">
+          <div>
+            <p class="eyebrow">PLAYBACK TRANSPORT</p>
+            <h2>音频播放进度</h2>
+          </div>
+          <div class="time-readout">
+            <span id="currentTime">0:00</span>
+            <span>/</span>
+            <span id="totalTime">--:--</span>
+          </div>
+        </div>
+
+        <div class="playback-panel">
+          <input
+            id="progressRange"
+            class="progress-range"
+            type="range"
+            min="0"
+            max="1"
+            step="0.001"
+            value="0"
+            disabled
+            aria-label="音频播放进度"
+          />
+          <div class="progress-meta">
+            <span id="progressHint">载入音频后可拖动调整进度</span>
+            <span id="progressPercent">0%</span>
+          </div>
+          <div class="progress-actions">
+            <button id="skipBackButton" type="button" disabled>后退 10 秒</button>
+            <button id="skipForwardButton" type="button" disabled>前进 10 秒</button>
+          </div>
+        </div>
+
+        <div class="stage-subheading">
+          <p class="eyebrow">RENDER TELEMETRY</p>
+          <h2>空间参数读数</h2>
+        </div>
+
+        <div class="metrics-grid">
+          <div class="metric">
+            <span>距离增益</span>
+            <strong id="metricDistanceGain">−6.0 dB</strong>
+          </div>
+          <div class="metric">
+            <span>双耳声级差</span>
+            <strong id="metricIld">0.0 dB</strong>
+          </div>
+          <div class="metric">
+            <span>双耳时差</span>
+            <strong id="metricItd">0.00 ms</strong>
+          </div>
+          <div class="metric">
+            <span>空气吸收</span>
+            <strong id="metricAir">20.0 kHz</strong>
+          </div>
+          <div class="metric">
+            <span>近场提升</span>
+            <strong id="metricNear">0.0 dB</strong>
+          </div>
+          <div class="metric">
+            <span>基础输出延时</span>
+            <strong id="metricLatency">待测</strong>
+          </div>
+        </div>
+
+        <div class="signal-chain" id="signalChain">
+          <span>Stereo L/R</span><i></i><span>Field pan</span><i></i><span>Elevation EQ</span><i></i><span>Distance</span><i></i><span>Limiter</span>
+        </div>
+      </section>
+
+      <aside class="method-rail" aria-label="实现方式">
+        <section class="section-block method-section">
+          <div class="section-heading">
+            <h2>已实现方法</h2>
+            <span id="methodCount">0 / 8</span>
+          </div>
+          <ol class="method-list">
+            <li data-method="mono">
+              <strong>单声道对象化</strong>
+              <span>立体声或双耳输入显式下混为单声道测试总线。</span>
+            </li>
+            <li data-method="browser-hrtf">
+              <strong>浏览器 HRTF</strong>
+              <span>Web Audio PannerNode 使用浏览器内建 HRIR。</span>
+            </li>
+            <li data-method="parametric">
+              <strong>参数化 HRTF</strong>
+              <span>ILD、ITD、头部阴影和耳廓频响近似。</span>
+            </li>
+            <li data-method="binaural-compat">
+              <strong>双耳兼容</strong>
+              <span>保留原始左右声道，只做整体声场和音色调整。</span>
+            </li>
+            <li data-method="inverse-distance">
+              <strong>距离反比</strong>
+              <span>以 0.2 m 为参考，声压按 1/r 衰减。</span>
+            </li>
+            <li data-method="air-absorption">
+              <strong>空气吸收</strong>
+              <span>距离越远，高频低通截止越低。</span>
+            </li>
+            <li data-method="near-field">
+              <strong>近场低频</strong>
+              <span>1 m 内逐步提升低频，模拟贴近感。</span>
+            </li>
+            <li data-method="reverb">
+              <strong>距离混响</strong>
+              <span>合成衰减脉冲，距离增加时提高湿声比例。</span>
+            </li>
+            <li data-method="wav-export">
+              <strong>WAV 导出</strong>
+              <span>实时捕获当前渲染结果并编码为 16/24-bit PCM。</span>
+            </li>
+            <li data-method="fixed-latency">
+              <strong>固定输出链</strong>
+              <span>展示 AudioContext 基础输出延时。</span>
+            </li>
+          </ol>
+        </section>
+
+      </aside>
+    </main>
+
+    <footer class="statusbar">
+      <span id="statusText">选择素材后按播放开始。</span>
+      <span id="audioStatus">AudioContext：未启动</span>
+    </footer>
+
+    <script src="./mobile-materials.js"></script>
+    <script defer src="./app.js"></script>
+    <script>
+      if (location.protocol.startsWith("http") && "serviceWorker" in navigator) {
+        navigator.serviceWorker.register("./service-worker.js");
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,786 @@
+{
+  "generatedAt": "2026-10-03T06:28:05.137Z",
+  "source": "Freesound CC0",
+  "items": [
+    {
+      "id": 171335,
+      "category": "01_binaural_reference",
+      "slug": "music_box_horizontal",
+      "title": "Music box horizontal.flac",
+      "author": "dwareing",
+      "authorId": "2945960",
+      "originalPage": "https://freesound.org/people/dwareing/sounds/171335/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/171/171335_2945960-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 17.8613,
+        "sampleRate": 44100,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/01_binaural_reference/0171335_music_box_horizontal.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 17.864195,
+        "readyState": 1,
+        "size": 451959
+      }
+    },
+    {
+      "id": 169373,
+      "category": "01_binaural_reference",
+      "slug": "music_box_vertical",
+      "title": "Music box vertical.flac",
+      "author": "dwareing",
+      "authorId": "2945960",
+      "originalPage": "https://freesound.org/people/dwareing/sounds/169373/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/169/169373_2945960-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 24.6073,
+        "sampleRate": 44100,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/01_binaural_reference/0169373_music_box_vertical.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 24.610159,
+        "readyState": 1,
+        "size": 633520
+      }
+    },
+    {
+      "id": 169329,
+      "category": "01_binaural_reference",
+      "slug": "matchbox_dropped",
+      "title": "matchbox dropped in bin.flac",
+      "author": "dwareing",
+      "authorId": "2945960",
+      "originalPage": "https://freesound.org/people/dwareing/sounds/169329/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/169/169329_2945960-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 3.13537,
+        "sampleRate": 44100,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/01_binaural_reference/0169329_matchbox_dropped.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 3.138277,
+        "readyState": 1,
+        "size": 82061
+      }
+    },
+    {
+      "id": 634100,
+      "category": "01_binaural_reference",
+      "slug": "binaural_train",
+      "title": "binaural-train-departing-24-96.wav",
+      "author": "HubSwitch",
+      "authorId": "3292564",
+      "originalPage": "https://freesound.org/people/HubSwitch/sounds/634100/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/634/634100_3292564-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 49.9339,
+        "sampleRate": 96000,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/01_binaural_reference/0634100_binaural_train.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 49.935208,
+        "readyState": 1,
+        "size": 1164593
+      }
+    },
+    {
+      "id": 434059,
+      "category": "01_binaural_reference",
+      "slug": "dummy_head_insects",
+      "title": "Insects.wav",
+      "author": "Wildhorsemann",
+      "authorId": "2268835",
+      "originalPage": "https://freesound.org/people/Wildhorsemann/sounds/434059/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/434/434059_2268835-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 56.8024,
+        "sampleRate": 48000,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/01_binaural_reference/0434059_dummy_head_insects.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 56.805042,
+        "readyState": 1,
+        "size": 1500764
+      }
+    },
+    {
+      "id": 471614,
+      "category": "01_binaural_reference",
+      "slug": "portland_backyard",
+      "title": "Portland Backyard Binaural",
+      "author": "yfjesse",
+      "authorId": "2391840",
+      "originalPage": "https://freesound.org/people/yfjesse/sounds/471614/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/471/471614_2391840-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 208.5,
+        "sampleRate": 44100,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/01_binaural_reference/0471614_portland_backyard.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 208.502902,
+        "readyState": 1,
+        "size": 4146373
+      }
+    },
+    {
+      "id": 869494,
+      "category": "01_binaural_reference",
+      "slug": "binaural_shower_sweep",
+      "title": "IR Shower Sinesweep recording",
+      "author": "Sadiquecat",
+      "authorId": "5287430",
+      "originalPage": "https://freesound.org/people/Sadiquecat/sounds/869494/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/869/869494_5287430-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 60.9574,
+        "sampleRate": 96000,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/01_binaural_reference/0869494_binaural_shower_sweep.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 60.958781,
+        "readyState": 4,
+        "size": 1434407
+      }
+    },
+    {
+      "id": 513411,
+      "category": "02_asmr_nearfield",
+      "slug": "woman_whisper",
+      "title": "Woman Whispering ASMR 02.wav",
+      "author": "vero.marengere",
+      "authorId": "6605732",
+      "originalPage": "https://freesound.org/people/vero.marengere/sounds/513411/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/513/513411_6605732-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 22,
+        "sampleRate": 48000,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/02_asmr_nearfield/0513411_woman_whisper.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 22.002667,
+        "readyState": 1,
+        "size": 315708
+      }
+    },
+    {
+      "id": 690082,
+      "category": "02_asmr_nearfield",
+      "slug": "fingernail_tap",
+      "title": "ASMR fingernail tap sound.mp3",
+      "author": "Elias79",
+      "authorId": "14301666",
+      "originalPage": "https://freesound.org/people/Elias79/sounds/690082/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/690/690082_14301666-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 20.557,
+        "sampleRate": 48000,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/02_asmr_nearfield/0690082_fingernail_tap.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 20.559646,
+        "readyState": 1,
+        "size": 438962
+      }
+    },
+    {
+      "id": 419727,
+      "category": "02_asmr_nearfield",
+      "slug": "asmr_tapping",
+      "title": "ASMR Tapping",
+      "author": "dahlJ",
+      "authorId": "7876389",
+      "originalPage": "https://freesound.org/people/dahlJ/sounds/419727/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/419/419727_7876389-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 53.9852,
+        "sampleRate": 48000,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/02_asmr_nearfield/0419727_asmr_tapping.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 53.987875,
+        "readyState": 1,
+        "size": 1391033
+      }
+    },
+    {
+      "id": 475701,
+      "category": "02_asmr_nearfield",
+      "slug": "hair_brushing",
+      "title": "HairBrushing.mp3",
+      "author": "shelbyshark",
+      "authorId": "8644110",
+      "originalPage": "https://freesound.org/people/shelbyshark/sounds/475701/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/475/475701_8644110-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 99.2885,
+        "sampleRate": 44100,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/02_asmr_nearfield/0475701_hair_brushing.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 99.291429,
+        "readyState": 1,
+        "size": 1635674
+      }
+    },
+    {
+      "id": 803595,
+      "category": "02_asmr_nearfield",
+      "slug": "mic_foam_brushing",
+      "title": "ASMR Mic Foam Scratching/Brushing",
+      "author": "salemaudio",
+      "authorId": "17274093",
+      "originalPage": "https://freesound.org/people/salemaudio/sounds/803595/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/803/803595_17274093-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 176.626,
+        "sampleRate": 48000,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/02_asmr_nearfield/0803595_mic_foam_brushing.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 176.629167,
+        "readyState": 1,
+        "size": 2620780
+      }
+    },
+    {
+      "id": 530346,
+      "category": "02_asmr_nearfield",
+      "slug": "mouth_sounds",
+      "title": "ASMR Mouth Sounds 1.wav",
+      "author": "ASMR_Tingles",
+      "authorId": "11771294",
+      "originalPage": "https://freesound.org/people/ASMR_Tingles/sounds/530346/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/530/530346_11771294-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 59.0019,
+        "sampleRate": 44100,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/02_asmr_nearfield/0530346_mouth_sounds.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 59.004807,
+        "readyState": 1,
+        "size": 1487856
+      }
+    },
+    {
+      "id": 690078,
+      "category": "02_asmr_nearfield",
+      "slug": "ear_cleaning",
+      "title": "ASMR cleaning ear.mp3",
+      "author": "Elias79",
+      "authorId": "14301666",
+      "originalPage": "https://freesound.org/people/Elias79/sounds/690078/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/690/690078_14301666-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 22.501,
+        "sampleRate": 48000,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/02_asmr_nearfield/0690078_ear_cleaning.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 22.503646,
+        "readyState": 1,
+        "size": 523357
+      }
+    },
+    {
+      "id": 559764,
+      "category": "02_asmr_nearfield",
+      "slug": "breadbag_crinkle",
+      "title": "Breadbag Crinkling",
+      "author": "jay_mar",
+      "authorId": "12505132",
+      "originalPage": "https://freesound.org/people/jay_mar/sounds/559764/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/559/559764_12505132-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 45.072,
+        "sampleRate": 48000,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/02_asmr_nearfield/0559764_breadbag_crinkle.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 45.074667,
+        "readyState": 1,
+        "size": 1362058
+      }
+    },
+    {
+      "id": 543479,
+      "category": "02_asmr_nearfield",
+      "slug": "haircut_scissors",
+      "title": "200088_RossJuterbock_Scissors Stereo Haircut ASMR.wav",
+      "author": "RossJuterbock",
+      "authorId": "11181745",
+      "originalPage": "https://freesound.org/people/RossJuterbock/sounds/543479/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/543/543479_11181745-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 36.524,
+        "sampleRate": 48000,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/02_asmr_nearfield/0543479_haircut_scissors.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 36.526625,
+        "readyState": 1,
+        "size": 966300
+      }
+    },
+    {
+      "id": 425467,
+      "category": "02_asmr_nearfield",
+      "slug": "turning_pages",
+      "title": "Turning Pages",
+      "author": "vartian",
+      "authorId": "4437940",
+      "originalPage": "https://freesound.org/people/vartian/sounds/425467/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/425/425467_4437940-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 39.6586,
+        "sampleRate": 96000,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/02_asmr_nearfield/0425467_turning_pages.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 39.659917,
+        "readyState": 1,
+        "size": 951610
+      }
+    },
+    {
+      "id": 830496,
+      "category": "02_asmr_nearfield",
+      "slug": "mechanical_keyboard",
+      "title": "Mechanical Keyboard Typing",
+      "author": "shaunhillyard",
+      "authorId": "4759831",
+      "originalPage": "https://freesound.org/people/shaunhillyard/sounds/830496/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/830/830496_4759831-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 68.0717,
+        "sampleRate": 48000,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/02_asmr_nearfield/0830496_mechanical_keyboard.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 68.074396,
+        "readyState": 1,
+        "size": 1370391
+      }
+    },
+    {
+      "id": 485043,
+      "category": "03_environment_distance",
+      "slug": "outside_birds",
+      "title": "Outside ambience with birds.wav",
+      "author": "mfma_sonic",
+      "authorId": "10391822",
+      "originalPage": "https://freesound.org/people/mfma_sonic/sounds/485043/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/485/485043_10391822-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 165.607,
+        "sampleRate": 48000,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/03_environment_distance/0485043_outside_birds.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 165.609521,
+        "readyState": 1,
+        "size": 3649697
+      }
+    },
+    {
+      "id": 535870,
+      "category": "03_environment_distance",
+      "slug": "rain_inside_car",
+      "title": "Ambiance_Rain_Inside_Car_Close_Roof_Loop_Stereo.wav",
+      "author": "Nox_Sound",
+      "authorId": "9250976",
+      "originalPage": "https://freesound.org/people/Nox_Sound/sounds/535870/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/535/535870_9250976-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 22.9512,
+        "sampleRate": 48000,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/03_environment_distance/0535870_rain_inside_car.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 22.953875,
+        "readyState": 1,
+        "size": 735113
+      }
+    },
+    {
+      "id": 268579,
+      "category": "03_environment_distance",
+      "slug": "tap_water",
+      "title": "Tap_Water.wav",
+      "author": "7h3_lark",
+      "authorId": "5086704",
+      "originalPage": "https://freesound.org/people/7h3_lark/sounds/268579/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/268/268579_5086704-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 15.375,
+        "sampleRate": 48000,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/03_environment_distance/0268579_tap_water.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 15.377667,
+        "readyState": 1,
+        "size": 332123
+      }
+    },
+    {
+      "id": 137288,
+      "category": "03_environment_distance",
+      "slug": "rain_old_theater",
+      "title": "Rain inside the old theater of Prypiat (close to Chernobyl, Ukraine)",
+      "author": "felix.blume",
+      "authorId": "1661766",
+      "originalPage": "https://freesound.org/people/felix.blume/sounds/137288/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/137/137288_1661766-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 118.955,
+        "sampleRate": 48000,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/03_environment_distance/0137288_rain_old_theater.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 118.957333,
+        "readyState": 1,
+        "size": 3246637
+      }
+    },
+    {
+      "id": 349312,
+      "category": "04_test_signals",
+      "slug": "pink_noise_delayed_stereo",
+      "title": "PINK_NOISE-10s.wav",
+      "author": "newagesoup",
+      "authorId": "4067257",
+      "originalPage": "https://freesound.org/people/newagesoup/sounds/349312/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/349/349312_4067257-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 10,
+        "sampleRate": 48000,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/04_test_signals/0349312_pink_noise_delayed_stereo.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 10.002667,
+        "readyState": 1,
+        "size": 258953
+      }
+    },
+    {
+      "id": 215691,
+      "category": "04_test_signals",
+      "slug": "acoustic_measurement_suite",
+      "title": "[WARNING! LOUD NOISE!] unfa's Acoustic Measurment Test Suite",
+      "author": "unfa",
+      "authorId": "1038806",
+      "originalPage": "https://freesound.org/people/unfa/sounds/215691/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/215/215691_1038806-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 259.902,
+        "sampleRate": 48000,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/04_test_signals/0215691_acoustic_measurement_suite.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 259.904208,
+        "readyState": 1,
+        "size": 1584609
+      }
+    },
+    {
+      "id": 192337,
+      "category": "04_test_signals",
+      "slug": "shower_clap_impulse",
+      "title": "Shower Clap - Closed - Flattened.wav",
+      "author": "Ligidium",
+      "authorId": "3276562",
+      "originalPage": "https://freesound.org/people/Ligidium/sounds/192337/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/192/192337_3276562-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 0.862115,
+        "sampleRate": 96000,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/04_test_signals/0192337_shower_clap_impulse.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 0.863448,
+        "readyState": 1,
+        "size": 25792
+      }
+    },
+    {
+      "id": 724024,
+      "category": "04_test_signals",
+      "slug": "underpass_impulse",
+      "title": "5.7s Boca Underpass",
+      "author": "djericmark",
+      "authorId": "8772782",
+      "originalPage": "https://freesound.org/people/djericmark/sounds/724024/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/724/724024_8772782-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 5.69998,
+        "sampleRate": 48000,
+        "channels": 2,
+        "tags": []
+      },
+      "file": "materials/04_test_signals/0724024_underpass_impulse.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 5.702646,
+        "readyState": 1,
+        "size": 101174
+      }
+    },
+    {
+      "id": 807393,
+      "category": "05_mono_controls",
+      "slug": "apple_eating_mono",
+      "title": "Food - Eating a fruit",
+      "author": "Vrymaa",
+      "authorId": "13973196",
+      "originalPage": "https://freesound.org/people/Vrymaa/sounds/807393/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/807/807393_13973196-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 32.5796,
+        "sampleRate": 48000,
+        "channels": 1,
+        "tags": []
+      },
+      "file": "materials/05_mono_controls/0807393_apple_eating_mono.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 32.58225,
+        "readyState": 1,
+        "size": 362961
+      }
+    },
+    {
+      "id": 565204,
+      "category": "05_mono_controls",
+      "slug": "keyboard_mono",
+      "title": "Computer keyboard typing close up",
+      "author": "khenshom",
+      "authorId": "6652872",
+      "originalPage": "https://freesound.org/people/khenshom/sounds/565204/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/565/565204_6652872-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 18,
+        "sampleRate": 48000,
+        "channels": 1,
+        "tags": []
+      },
+      "file": "materials/05_mono_controls/0565204_keyboard_mono.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 18.002667,
+        "readyState": 1,
+        "size": 239724
+      }
+    },
+    {
+      "id": 705058,
+      "category": "05_mono_controls",
+      "slug": "underwater_bubbles_mono",
+      "title": "Sea waves underwater, back and forth, close to the rocks with water bubbles",
+      "author": "felix.blume",
+      "authorId": "1661766",
+      "originalPage": "https://freesound.org/people/felix.blume/sounds/705058/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/705/705058_1661766-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 23.2008,
+        "sampleRate": 48000,
+        "channels": 1,
+        "tags": []
+      },
+      "file": "materials/05_mono_controls/0705058_underwater_bubbles_mono.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 23.203438,
+        "readyState": 1,
+        "size": 252347
+      }
+    },
+    {
+      "id": 350814,
+      "category": "05_mono_controls",
+      "slug": "rhythmic_brush_mono",
+      "title": "rhythmic-scrash.wav",
+      "author": "Kalabasa25",
+      "authorId": "3323264",
+      "originalPage": "https://freesound.org/people/Kalabasa25/sounds/350814/",
+      "license": "Creative Commons 0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "previewUrl": "https://cdn.freesound.org/previews/350/350814_3323264-hq.ogg",
+      "previewQuality": "hq",
+      "sourceMetadata": {
+        "duration": 6.86549,
+        "sampleRate": 44100,
+        "channels": 1,
+        "tags": []
+      },
+      "file": "materials/05_mono_controls/0350814_rhythmic_brush_mono.ogg",
+      "fileMetadata": {
+        "browserDecoded": true,
+        "decodedDuration": 6.86839,
+        "readyState": 1,
+        "size": 82002
+      }
+    }
+  ]
+}

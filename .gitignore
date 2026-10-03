@@ -1,0 +1,33 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# Generated application builds
+dist/
+
+# Local Android signing material
+android/keystore.properties
+android/*.keystore
+android/local.properties
+
+# Android and Gradle build output
+android/.gradle/
+android/.kotlin/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/
+
+# Local Android build toolchain
+tools/android-build/
+
+# Runtime files
+*.log
+*.pid
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.user
