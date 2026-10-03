@@ -30,7 +30,7 @@
 在项目根目录运行：
 
 ```powershell
-& 'D:\codex\Codex\resources\cua_node\bin\node.exe' '.\tools\fetch_materials.mjs'
+node .\tools\fetch_materials.mjs
 ```
 
 脚本会跳过已经存在的文件，并重建清单。

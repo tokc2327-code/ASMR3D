@@ -35,8 +35,8 @@ $env:GRADLE_USER_HOME = $GradleUserHome
 
 Push-Location $Root
 try {
-    & "D:\NODE\node.exe" (Join-Path $Root "tools\build_mobile.mjs")
-    & "D:\NODE\npx.cmd" cap sync android
+    & node (Join-Path $Root "tools\build_mobile.mjs")
+    & npx cap sync android
 } finally {
     Pop-Location
 }

@@ -5,7 +5,7 @@
 ## 运行
 
 ```powershell
-& 'D:\NODE\node.exe' 'D:\codex\asmr3d\renderer\server.mjs'
+node .\renderer\server.mjs
 ```
 
 浏览器打开：

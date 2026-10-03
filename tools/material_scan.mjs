@@ -1,11 +1,9 @@
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { chromium } = require(
-  "D:/codex/Codex/resources/cua_node/bin/node_modules/playwright",
-);
+const { chromium } = require(process.env.PLAYWRIGHT_PATH || "playwright");
 
-const EDGE = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
+const EDGE = process.env.EDGE_PATH || undefined;
 
 const searches = [
   ["binaural-recording", "binaural recording"],

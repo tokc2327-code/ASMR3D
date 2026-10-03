@@ -1,16 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const require = createRequire(import.meta.url);
-const { chromium } = require(
-  "D:/codex/Codex/resources/cua_node/bin/node_modules/playwright",
-);
+const { chromium } = require(process.env.PLAYWRIGHT_PATH || "playwright");
 
-const ROOT = "D:/codex/asmr3d";
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MATERIALS_DIR = path.join(ROOT, "materials");
-const EDGE = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe";
+const EDGE = process.env.EDGE_PATH || undefined;
 
 const selected = [
   { id: 171335, category: "01_binaural_reference", slug: "music_box_horizontal" },
@@ -325,7 +323,7 @@ const readme = `# ASMR 空间音频测试素材
 在项目根目录运行：
 
 \`\`\`powershell
-& 'D:\\codex\\Codex\\resources\\cua_node\\bin\\node.exe' '.\\tools\\fetch_materials.mjs'
+node .\\tools\\fetch_materials.mjs
 \`\`\`
 
 脚本会跳过已经存在的文件，并重建清单。

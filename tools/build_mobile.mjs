@@ -1,8 +1,9 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const ROOT = "D:/codex/asmr3d";
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const RENDERER_DIR = path.join(ROOT, "renderer");
 const MATERIALS_DIR = path.join(ROOT, "materials");
 const DIST_ROOT = path.join(ROOT, "dist");
