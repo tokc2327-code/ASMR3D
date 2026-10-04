@@ -174,6 +174,60 @@ function formatTime(seconds) {
   return `${minutes}:${String(secs).padStart(2, "0")}`;
 }
 
+// Chromium 的 decodeAudioData 一次最多解出约 2 GiB PCM（2^31 字节），
+// 超过时只抛出一句 "Unable to decode audio data"。48 kHz 立体声 float32
+// 换算下来约 93 分钟，所以这里留一点余量提前拦截。
+const DECODE_PCM_LIMIT_BYTES = 2 * 1024 * 1024 * 1024;
+const DECODE_PCM_SAFE_BYTES = DECODE_PCM_LIMIT_BYTES * 0.97;
+
+function decodedPcmBytes(durationSeconds, sampleRate) {
+  return durationSeconds * sampleRate * 2 * 4;
+}
+
+function decodeLimitMinutes(sampleRate) {
+  return DECODE_PCM_SAFE_BYTES / (sampleRate * 2 * 4) / 60;
+}
+
+function formatDurationCn(seconds) {
+  const total = Math.round(seconds);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  return hours > 0 ? `${hours} 小时 ${minutes} 分` : `${minutes} 分 ${total % 60} 秒`;
+}
+
+// 在真正调用 decodeAudioData 之前拦住必然失败的超长文件。
+function assertDecodableLength(durationSeconds, sampleRate, hint) {
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return;
+  const bytes = decodedPcmBytes(durationSeconds, sampleRate);
+  if (bytes <= DECODE_PCM_SAFE_BYTES) return;
+  throw new Error(
+    `时长 ${formatDurationCn(durationSeconds)}，超过单次解码上限（当前采样率下约 ${decodeLimitMinutes(
+      sampleRate,
+    ).toFixed(0)} 分钟）。浏览器一次最多解出约 2 GB PCM 数据，${hint}`,
+  );
+}
+
+function isOverDecodeLimit(durationSeconds, sampleRate) {
+  return (
+    Number.isFinite(durationSeconds) &&
+    durationSeconds > 0 &&
+    decodedPcmBytes(durationSeconds, sampleRate) > DECODE_PCM_SAFE_BYTES
+  );
+}
+
+// decodeAudioData 的报错只有一句英文，这里换成能指导操作的说明。
+// 覆盖"时长未知"的情况（无 Xing 头的 VBR MP3 会报 Infinity）。
+async function decodeAudioBufferFriendly(context, arrayBuffer, hint) {
+  try {
+    return await context.decodeAudioData(arrayBuffer);
+  } catch {
+    throw new Error(
+      `音频解码失败：文件可能过长、损坏，或使用了不支持的编码。` +
+        `浏览器单次最多解出约 2 GB PCM 数据（48 kHz 立体声约 90 分钟）。${hint}`,
+    );
+  }
+}
+
 function updateProgressUI({ enabled } = {}) {
   const duration = state.audio && Number.isFinite(state.audio.duration)
     ? state.audio.duration
@@ -725,6 +779,30 @@ async function startOfflineExport() {
 
   const parameters = currentParameters();
   state.audio.pause();
+  // 用户可能选完文件就直接导出，此时音频元素还没挂上源文件。
+  if (state.audio.currentSrc !== state.activeSource.mediaUrl) {
+    state.audio.src = state.activeSource.mediaUrl;
+    state.audio.load();
+  }
+  // 时长是前置检查的依据，元数据还没读完就先等它。
+  if (state.audio.readyState < 1) {
+    await new Promise((resolve) => {
+      const timeout = window.setTimeout(resolve, 5000);
+      state.audio.addEventListener(
+        "loadedmetadata",
+        () => {
+          window.clearTimeout(timeout);
+          resolve();
+        },
+        { once: true },
+      );
+    });
+  }
+  assertDecodableLength(
+    state.audio.duration,
+    state.audioContext.sampleRate,
+    "请改用「指定片段（实时捕获）」导出，或先用音频工具把文件切成小于 90 分钟的几段。",
+  );
   setExportControlsDisabled(true);
   elements.cancelExportButton.disabled = true;
   elements.exportProgress.removeAttribute("value");
@@ -737,7 +815,11 @@ async function startOfflineExport() {
   }
   const arrayBuffer = await response.arrayBuffer();
   elements.exportStatus.textContent = "正在解码完整音频……";
-  const audioBuffer = await state.audioContext.decodeAudioData(arrayBuffer);
+  const audioBuffer = await decodeAudioBufferFriendly(
+    state.audioContext,
+    arrayBuffer,
+    "请改用「指定片段（实时捕获）」导出，或先用音频工具把文件切成小于 90 分钟的几段。",
+  );
   const durationSeconds = audioBuffer.duration;
   const offlineContext = new OfflineAudioContext(
     2,
@@ -1730,10 +1812,12 @@ function probeMediaDuration(file) {
   });
 }
 
-function decodeMediaToAudioBuffer(arrayBuffer) {
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (!state.convertContext) state.convertContext = new AudioContextClass();
-  return state.convertContext.decodeAudioData(arrayBuffer);
+function getConvertContext() {
+  if (!state.convertContext) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    state.convertContext = new AudioContextClass();
+  }
+  return state.convertContext;
 }
 
 // Shows duration, predicted WAV size and memory need before converting.
@@ -1758,13 +1842,23 @@ async function describeConvertFile() {
     return;
   }
   const footprint = estimateConvertFootprint(duration, bitDepth, file.size);
-  setConvertStatus(
+  const base =
     `${file.name} · ${formatTime(duration)} · 源文件 ${formatBytes(
       file.size,
     )} → 预计输出 ${formatBytes(footprint.wav)}（${bitDepth}-bit），转换需要约 ${formatBytes(
       footprint.peak,
-    )} 内存`,
-  );
+    )} 内存`;
+  if (isOverDecodeLimit(duration, CONVERT_ASSUMED_RATE)) {
+    setConvertBadge("超长");
+    setConvertStatus(
+      `${base} · ⚠ 时长超过单次解码上限（约 ${decodeLimitMinutes(
+        CONVERT_ASSUMED_RATE,
+      ).toFixed(0)} 分钟），请先切成几段再转换`,
+      "error",
+    );
+    return;
+  }
+  setConvertStatus(base);
 }
 
 async function convertMediaToWav() {
@@ -1783,6 +1877,11 @@ async function convertMediaToWav() {
   try {
     const duration = await probeMediaDuration(file);
     if (duration) {
+      assertDecodableLength(
+        duration,
+        CONVERT_ASSUMED_RATE,
+        "请先用音频工具把文件切成小于 90 分钟的几段再转换。",
+      );
       if (duration > CONVERT_MAX_HOURS * 3600) {
         throw new Error(
           `时长约 ${(duration / 3600).toFixed(1)} 小时，超过 ${CONVERT_MAX_HOURS} 小时上限。`,
@@ -1806,7 +1905,11 @@ async function convertMediaToWav() {
 
     elements.convertProgress.value = 0.15;
     setConvertStatus("正在解码音频轨道……", "running");
-    const decoded = await decodeMediaToAudioBuffer(await file.arrayBuffer());
+    const decoded = await decodeAudioBufferFriendly(
+      getConvertContext(),
+      await file.arrayBuffer(),
+      "请先用音频工具把文件切成小于 90 分钟的几段再转换。",
+    );
 
     elements.convertProgress.value = 0.6;
     setConvertStatus("正在编码 WAV……", "running");

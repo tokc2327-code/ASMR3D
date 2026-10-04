@@ -70,6 +70,19 @@ pwsh -File .\tools\make_icons.ps1 -Source D:\path\to\avatar.jpg
 node .\tools\build_exe.mjs
 ```
 
+## 本地网页版
+
+安装 Node.js 后运行：
+
+```powershell
+node .\renderer\server.mjs
+```
+
+浏览器打开：
+
+```text
+http://127.0.0.1:4173
+```
 
 ## 安装前端依赖
 

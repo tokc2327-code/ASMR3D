@@ -261,6 +261,18 @@ async function uploadReleaseAssets(release) {
   );
   const existingNames = new Set(existing.map((asset) => asset.name));
 
+  // 需要覆盖同名资源时（例如热修打包内容），先删掉旧的。
+  if (process.env.ASMR3D_REPLACE_ASSETS === "1") {
+    for (const asset of existing) {
+      await github(
+        `/repos/${OWNER}/${REPO}/releases/assets/${asset.id}`,
+        { method: "DELETE" },
+      );
+      existingNames.delete(asset.name);
+      console.log(`删除旧资源: ${asset.name}`);
+    }
+  }
+
   for (const entry of fs.readdirSync(RELEASE_DIR, { withFileTypes: true })) {
     if (!entry.isFile() || existingNames.has(entry.name)) continue;
     const filePath = path.join(RELEASE_DIR, entry.name);
