@@ -179,6 +179,7 @@ function formatTime(seconds) {
 // 换算下来约 93 分钟，所以这里留一点余量提前拦截。
 const DECODE_PCM_LIMIT_BYTES = 2 * 1024 * 1024 * 1024;
 const DECODE_PCM_SAFE_BYTES = DECODE_PCM_LIMIT_BYTES * 0.97;
+const WAV_SIZE_LIMIT_BYTES = 3.8 * 1024 * 1024 * 1024; // RIFF 的 4 GB 长度字段上限
 
 function decodedPcmBytes(durationSeconds, sampleRate) {
   return durationSeconds * sampleRate * 2 * 4;
@@ -205,6 +206,146 @@ function assertDecodableLength(durationSeconds, sampleRate, hint) {
       sampleRate,
     ).toFixed(0)} 分钟）。浏览器一次最多解出约 2 GB PCM 数据，${hint}`,
   );
+}
+
+// ---------------------------------------------------------------------------
+// 超长文件的分段离线导出
+//
+// 浏览器一次只能解出约 2 GiB PCM（48 kHz 立体声约 93 分钟），超过就报
+// "Unable to decode audio data"。能救的办法是按字节把源文件切开分别解码再拼接，
+// 但这要求容器允许从中间开始解码——实测只有 MP3 可以：
+//
+//   MP3          中段/尾部切片都能解（帧自包含，解码器会自动找同步字）
+//   FLAC         中段切片失败（解码器需要开头的 STREAMINFO）
+//   OGG / Opus   中段切片失败（需要开头的 codec setup）
+//   MP4 / M4A    中段切片失败（需要开头的 moov）
+// ---------------------------------------------------------------------------
+
+const SLICEABLE_MEDIA_EXTENSIONS = [".mp3", ".mp2", ".mpga", ".mpa"];
+// 每段目标解码时长：30 分钟（48 kHz 立体声 float32 约 0.69 GiB），
+// 渲染时还会再产生一份同样大小的输出，峰值约 1.4 GB，留足余量。
+const SEGMENT_TARGET_SECONDS = 30 * 60;
+const MIN_SEGMENT_BYTES = 2 * 1024 * 1024;
+
+function activeSourceExtension() {
+  const name = state.activeSource?.file || state.activeSource?.title || "";
+  const match = /(\.[a-z0-9]+)$/i.exec(name);
+  return match ? match[1].toLowerCase() : "";
+}
+
+function isSliceableSource() {
+  return SLICEABLE_MEDIA_EXTENSIONS.includes(activeSourceExtension());
+}
+
+// 让切片从一个完整的 MP3 帧开始，避免开头出现解码垃圾。
+function alignToFrameStart(bytes, offset) {
+  if (offset <= 0) return 0;
+  const limit = Math.min(offset + 128 * 1024, bytes.length - 1);
+  for (let index = offset; index < limit; index += 1) {
+    if (bytes[index] === 0xff && (bytes[index + 1] & 0xe0) === 0xe0) {
+      return index;
+    }
+  }
+  return offset;
+}
+
+async function startSegmentedOfflineExport({
+  parameters,
+  bitDepth,
+  durationSeconds,
+}) {
+  const mediaUrl = state.activeSource.mediaUrl;
+  elements.exportStatus.textContent = "正在读取完整源文件……";
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+
+  const response = await fetch(mediaUrl);
+  if (!response.ok) throw new Error(`源文件读取失败：${response.status}`);
+  const bytes = new Uint8Array(await response.arrayBuffer());
+
+  // 预估段长：优先用已知时长换算，拿不到时长就按最低码率保守取。
+  const bytesPerSecond =
+    Number.isFinite(durationSeconds) && durationSeconds > 0
+      ? bytes.length / durationSeconds
+      : 4000; // ≈32 kbps，保证任何码率下单段都不超过 30 分钟
+  const segmentBytes = Math.max(
+    MIN_SEGMENT_BYTES,
+    Math.floor(bytesPerSecond * SEGMENT_TARGET_SECONDS),
+  );
+  const estimatedSegments = Math.max(1, Math.ceil(bytes.length / segmentBytes));
+
+  const builder = createWavBuilder(state.audioContext.sampleRate, bitDepth);
+  // 先按计划把文件切成若干段；后面万一某段仍然解不动，再靠失败拆分兜底。
+  const queue = [];
+  for (let offset = 0; offset < bytes.length; offset += segmentBytes) {
+    queue.push([offset, Math.min(offset + segmentBytes, bytes.length)]);
+  }
+  let done = 0;
+  let segments = 0;
+
+  elements.exportProgress.value = 0;
+  elements.exportStatus.textContent = `文件较长：${(
+    bytes.length / 1048576
+  ).toFixed(0)} MB，将分 ${queue.length} 段渲染（每段约 ${(
+    segmentBytes /
+    bytesPerSecond /
+    60
+  ).toFixed(0)} 分钟）……`;
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  while (queue.length > 0) {
+    const [start, end] = queue.shift();
+    const sliceStart = start === 0 ? 0 : alignToFrameStart(bytes, start);
+    let decoded = null;
+    try {
+      decoded = await state.audioContext.decodeAudioData(
+        bytes.slice(sliceStart, end).buffer,
+      );
+    } catch (error) {
+      // 单段仍然太大就一分为二继续试；到最小粒度还失败才算真的失败。
+      if (end - start <= MIN_SEGMENT_BYTES) {
+        throw new Error(
+          `第 ${segments + 1} 段解码失败，文件可能在中间损坏。可以先用音频工具重新导出成标准 MP3 再试。`,
+        );
+      }
+      const middle = alignToFrameStart(bytes, Math.floor((start + end) / 2));
+      if (middle <= start || middle >= end) throw error;
+      queue.unshift([middle, end], [start, middle]);
+      continue;
+    }
+
+    const offlineContext = new OfflineAudioContext(
+      2,
+      decoded.length,
+      decoded.sampleRate,
+    );
+    buildOfflineGraph(offlineContext, decoded, parameters);
+    const rendered = await offlineContext.startRendering();
+    await builder.add(
+      rendered.getChannelData(0),
+      rendered.numberOfChannels > 1
+        ? rendered.getChannelData(1)
+        : rendered.getChannelData(0),
+    );
+
+    segments += 1;
+    done = end;
+    elements.exportProgress.value = done / bytes.length;
+    elements.exportStatus.textContent = `分段离线渲染 ${Math.round(
+      (done / bytes.length) * 100,
+    )}%（已完成 ${segments} 段，累计 ${(
+      builder.frames / state.audioContext.sampleRate
+    ).toFixed(0)} 秒）`;
+    // 让出主线程，界面保持响应，同时释放上一段的解码缓冲。
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+  }
+
+  elements.exportStatus.textContent = "正在编码完整 WAV……";
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  const wav = builder.toBlob();
+  await downloadExport(wav, parameters);
+  elements.exportProgress.value = 1;
+  elements.exportStatus.textContent = `分段导出完成：${(
+    builder.frames / state.audioContext.sampleRate
+  ).toFixed(1)} 秒 · ${segments} 段合并 · ${bitDepth}-bit WAV（预计 ${estimatedSegments} 段）`;
 }
 
 function isOverDecodeLimit(durationSeconds, sampleRate) {
@@ -391,17 +532,10 @@ function writeWavHeader(view, dataSize, sampleRate, bitDepth) {
   writeUint32(dataSize);
 }
 
-// Encoded in chunks and assembled as a Blob so long files do not require one
-// giant ArrayBuffer on top of the decoded audio. Yields to the event loop
-// periodically so the window keeps responding during long encodes.
-async function encodeWav(left, right, sampleRate, bitDepth, onProgress) {
+// 把一段 PCM 编成若干小块，交给外层的 Blob 组装；每若干块让出一次主线程。
+async function encodePcmParts(left, right, bitDepth, parts, onProgress) {
   const frameCount = Math.min(left.length, right.length);
   const bytesPerSample = bitDepth / 8;
-  const dataSize = frameCount * 2 * bytesPerSample;
-  const header = new ArrayBuffer(44);
-  writeWavHeader(new DataView(header), dataSize, sampleRate, bitDepth);
-
-  const parts = [header];
   const chunkFrames = 1 << 16;
   for (let start = 0; start < frameCount; start += chunkFrames) {
     const frames = Math.min(chunkFrames, frameCount - start);
@@ -435,9 +569,43 @@ async function encodeWav(left, right, sampleRate, bitDepth, onProgress) {
       await new Promise((resolve) => window.setTimeout(resolve, 0));
     }
   }
+  return frameCount;
+}
 
+// 边渲染边追加的 WAV 组装器：分段导出时用它把多段结果拼成一个成品，
+// 全程不需要把整段音频的 PCM 同时放进内存。
+function createWavBuilder(sampleRate, bitDepth) {
+  const parts = [];
+  let frameCount = 0;
+  return {
+    async add(left, right, onProgress) {
+      frameCount += await encodePcmParts(left, right, bitDepth, parts, onProgress);
+    },
+    get frames() {
+      return frameCount;
+    },
+    toBlob() {
+      const bytesPerSample = bitDepth / 8;
+      const header = new ArrayBuffer(44);
+      writeWavHeader(
+        new DataView(header),
+        frameCount * 2 * bytesPerSample,
+        sampleRate,
+        bitDepth,
+      );
+      return new Blob([header, ...parts], { type: "audio/wav" });
+    },
+  };
+}
+
+// Encoded in chunks and assembled as a Blob so long files do not require one
+// giant ArrayBuffer on top of the decoded audio. Yields to the event loop
+// periodically so the window keeps responding during long encodes.
+async function encodeWav(left, right, sampleRate, bitDepth, onProgress) {
+  const builder = createWavBuilder(sampleRate, bitDepth);
+  await builder.add(left, right, onProgress);
   if (onProgress) onProgress(1);
-  return new Blob(parts, { type: "audio/wav" });
+  return builder.toBlob();
 }
 
 function getExportFileName(parameters) {
@@ -798,14 +966,40 @@ async function startOfflineExport() {
       );
     });
   }
-  assertDecodableLength(
-    state.audio.duration,
-    state.audioContext.sampleRate,
-    "请改用「指定片段（实时捕获）」导出，或先用音频工具把文件切成小于 90 分钟的几段。",
-  );
   setExportControlsDisabled(true);
   elements.cancelExportButton.disabled = true;
   elements.exportProgress.removeAttribute("value");
+
+  const duration = state.audio.duration;
+  const bitDepth = Number(elements.exportBitDepth.value);
+  if (isOverDecodeLimit(duration, state.audioContext.sampleRate)) {
+    // 超长文件：MP3 可以按字节切段处理，其它格式只能给明确建议。
+    if (!isSliceableSource()) {
+      const extension = activeSourceExtension() || "该格式";
+      throw new Error(
+        `时长 ${formatDurationCn(duration)}，超过单次解码上限（当前采样率下约 ${decodeLimitMinutes(
+          state.audioContext.sampleRate,
+        ).toFixed(0)} 分钟）。浏览器一次最多解出约 2 GB PCM 数据，` +
+          `而 ${extension} 不支持分段解码（解码器需要文件开头的容器信息）。` +
+          `请改用「指定片段（实时捕获）」导出，或把源文件重新导出成 MP3、或切成小于 90 分钟的几段。`,
+      );
+    }
+    const estimatedBytes =
+      duration * state.audioContext.sampleRate * 2 * (bitDepth / 8);
+    if (estimatedBytes > WAV_SIZE_LIMIT_BYTES) {
+      throw new Error(
+        `分段渲染可行，但预计成品 ${formatBytes(estimatedBytes)} 超过 WAV 单片 4 GB 上限，请改用 16-bit 或分成两段导出。`,
+      );
+    }
+    await startSegmentedOfflineExport({
+      parameters,
+      bitDepth,
+      durationSeconds: duration,
+    });
+    setExportControlsDisabled(false);
+    return;
+  }
+
   elements.exportStatus.textContent = "正在读取完整源文件……";
   await new Promise((resolve) => requestAnimationFrame(resolve));
 
@@ -1763,7 +1957,6 @@ async function togglePlayback() {
 const CONVERT_ASSUMED_RATE = 48000;
 const CONVERT_ASSUMED_CHANNELS = 2;
 const CONVERT_MAX_HOURS = 6;
-const WAV_SIZE_LIMIT_BYTES = 3.8 * 1024 * 1024 * 1024; // RIFF 4 GB field
 
 function estimateConvertFootprint(duration, bitDepth, fileSize) {
   const decoded =
