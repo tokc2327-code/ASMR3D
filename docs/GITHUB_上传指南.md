@@ -23,7 +23,7 @@ Choose a license：不勾选
 解压：
 
 ```text
-asmr3d-v0.1-github-source.zip
+asmr3d-v0.2-github-source.zip
 ```
 
 将解压后的全部内容上传到仓库根目录。
@@ -33,7 +33,7 @@ asmr3d-v0.1-github-source.zip
 ```powershell
 git init
 git add .
-git commit -m "Initial open source release v0.1"
+git commit -m "Initial open source release v0.2"
 git branch -M main
 git remote add origin https://github.com/你的用户名/asmr3d-spatial-renderer.git
 git push -u origin main
@@ -62,24 +62,24 @@ Releases → Draft a new release
 建议标签：
 
 ```text
-v0.1-test
+v0.2-beta
 ```
 
 资源包：
 
 ```text
-asmr3d-v0.1-release-assets.zip
+asmr3d-v0.2-release-assets.zip
 ```
 
 也可以分别上传：
 
 ```text
-asmr3d-v0.1-test.apk
-asmr3d-v0.1-test.apk.sha256
-asmr3d-v0.1-android.zip
-asmr3d-v0.1-win-x64.zip
-asmr3d-v0.1-win-x64.zip.sha256
-asmr3d-v0.1-mobile.zip
+asmr3d-v0.2-test.apk
+asmr3d-v0.2-test.apk.sha256
+asmr3d-v0.2-android.zip
+asmr3d-v0.2-win-x64.zip
+asmr3d-v0.2-win-x64.zip.sha256
+asmr3d-v0.2-mobile.zip
 APK_使用教程.md
 WINDOWS_INSTALL.md
 ```

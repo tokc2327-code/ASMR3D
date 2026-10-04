@@ -49,7 +49,7 @@ try {
 }
 
 $SourceApk = Join-Path $Root "android\app\build\outputs\apk\release\app-release.apk"
-$OutputApk = Join-Path $Root "dist\asmr3d空间渲染器-v0.1测试版.apk"
+$OutputApk = Join-Path $Root "dist\asmr3d空间渲染器-v0.2公测版.apk"
 Copy-Item -LiteralPath $SourceApk -Destination $OutputApk -Force
 
 $Hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $OutputApk).Hash

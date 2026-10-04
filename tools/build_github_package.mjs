@@ -8,10 +8,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const DIST = path.join(ROOT, "dist");
 const GITHUB_ROOT = path.join(DIST, "github-package");
-const SOURCE_DIR = path.join(GITHUB_ROOT, "asmr3d-v0.1-source");
-const SOURCE_ZIP = path.join(DIST, "asmr3d-v0.1-github-source.zip");
+const SOURCE_DIR = path.join(GITHUB_ROOT, "asmr3d-v0.2-source");
+const SOURCE_ZIP = path.join(DIST, "asmr3d-v0.2-github-source.zip");
 const RELEASE_DIR = path.join(GITHUB_ROOT, "release-assets");
-const RELEASE_ZIP = path.join(DIST, "asmr3d-v0.1-release-assets.zip");
+const RELEASE_ZIP = path.join(DIST, "asmr3d-v0.2-release-assets.zip");
 
 const ignored = [
   "node_modules",
@@ -104,18 +104,30 @@ execFileSync("tar.exe", ["-a", "-c", "-f", SOURCE_ZIP, "-C", SOURCE_DIR, "."], {
 
 fs.mkdirSync(RELEASE_DIR, { recursive: true });
 for (const file of [
-  "asmr3d-v0.1-test.apk",
-  "asmr3d-v0.1-test.apk.sha256",
-  "asmr3d-v0.1-android.zip",
-  "asmr3d-v0.1-win-x64.zip",
-  "asmr3d-v0.1-win-x64.zip.sha256",
-  "asmr3d-v0.1-mobile.zip",
-  "APK_GUIDE_ZH.md",
-  "APK_GUIDE_ZH.txt",
-  "ANDROID_INSTALL.md",
+  "asmr3d-v0.2-win-x64.zip",
+  "asmr3d-v0.2-mobile.zip",
   "WINDOWS_INSTALL.md",
 ]) {
-  fs.copyFileSync(path.join(DIST, file), path.join(RELEASE_DIR, file));
+  const from = path.join(DIST, file);
+  if (!fs.existsSync(from)) {
+    console.warn(`跳过不存在的发布资源: ${file}`);
+    continue;
+  }
+  fs.copyFileSync(from, path.join(RELEASE_DIR, file));
+}
+
+// 为随包发布的压缩包补一份 SHA-256（Windows 版自带 PowerShell，体积大，值得校验）。
+for (const name of ["asmr3d-v0.2-win-x64.zip", "asmr3d-v0.2-mobile.zip"]) {
+  const target = path.join(RELEASE_DIR, name);
+  if (!fs.existsSync(target)) continue;
+  const hash = createHash("sha256")
+    .update(fs.readFileSync(target))
+    .digest("hex")
+    .toUpperCase();
+  fs.writeFileSync(
+    path.join(RELEASE_DIR, `${name}.sha256`),
+    `${hash}  ${name}\n`,
+  );
 }
 
 fs.rmSync(RELEASE_ZIP, { force: true });

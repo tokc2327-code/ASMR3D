@@ -51,6 +51,37 @@ const elements = {
   metricLatency: $("#metricLatency"),
   signalChain: $("#signalChain"),
   methodCount: $("#methodCount"),
+  liveSection: $("#liveSection"),
+  liveModeBadge: $("#liveModeBadge"),
+  liveTargetSelect: $("#liveTargetSelect"),
+  liveRefreshButton: $("#liveRefreshButton"),
+  liveStartButton: $("#liveStartButton"),
+  liveStopButton: $("#liveStopButton"),
+  liveLevelBar: $("#liveLevelBar"),
+  liveLevelText: $("#liveLevelText"),
+  liveStatus: $("#liveStatus"),
+  liveSilenceSelect: $("#liveSilenceSelect"),
+  sourceModeSelect: $("#sourceModeSelect"),
+  recordToggle: $("#recordToggle"),
+  recordBadge: $("#recordBadge"),
+  recordSegmentSelect: $("#recordSegmentSelect"),
+  recordBitDepthSelect: $("#recordBitDepthSelect"),
+  recordDirButton: $("#recordDirButton"),
+  recordRevealButton: $("#recordRevealButton"),
+  recordDirText: $("#recordDirText"),
+  recordStatus: $("#recordStatus"),
+  exportDirText: $("#exportDirText"),
+  convertFileInput: $("#convertFileInput"),
+  convertBitDepth: $("#convertBitDepth"),
+  convertButton: $("#convertButton"),
+  convertProgress: $("#convertProgress"),
+  convertStatus: $("#convertStatus"),
+  convertBadge: $("#convertBadge"),
+  templateImportButton: $("#templateImportButton"),
+  templateExportButton: $("#templateExportButton"),
+  templateFileInput: $("#templateFileInput"),
+  templateStatus: $("#templateStatus"),
+  templateBadge: $("#templateBadge"),
 };
 
 const state = {
@@ -77,6 +108,29 @@ const state = {
   exportCapture: null,
   modeSwitchId: 0,
   objectUrl: null,
+  lastSeekAt: 0,
+  convertContext: null,
+  inputSource: "media",
+  liveGain: null,
+  liveNode: null,
+  liveFallback: null,
+  liveQueue: { left: [], right: [], length: 0 },
+  liveResamplerL: null,
+  liveResamplerR: null,
+  liveChannels: 2,
+  livePendingChunks: [],
+  liveLevelPeak: 0,
+  liveMeterTimer: null,
+  liveTargets: [],
+  liveCapability: { processLoopback: false, runtime: "" },
+  liveActive: false,
+  liveCompensation: 1,
+  sourceAttenuation: 0,
+  recordTap: null,
+  recording: false,
+  recordingDirectory: "",
+  recordingPollTimer: null,
+  lastRecordingFile: null,
 };
 
 const constants = {
@@ -137,16 +191,28 @@ function updateProgressUI({ enabled } = {}) {
     : "载入音频后可拖动调整进度";
 
   if (hasDuration) {
-    elements.progressRange.max = String(duration);
+    // Assigning max (even to the same value) cancels an in-progress pointer
+    // drag in Chromium, so only touch it when the duration really changed.
+    const max = String(duration);
+    if (elements.progressRange.max !== max) {
+      elements.progressRange.max = max;
+    }
     if (!state.isSeeking) {
-      elements.progressRange.value = String(Math.min(current, duration));
+      const value = String(Math.min(current, duration));
+      if (elements.progressRange.value !== value) {
+        elements.progressRange.value = value;
+      }
     }
     elements.progressPercent.textContent = `${Math.round(
       (current / duration) * 100,
     )}%`;
   } else {
-    elements.progressRange.max = "1";
-    elements.progressRange.value = "0";
+    if (elements.progressRange.max !== "1") {
+      elements.progressRange.max = "1";
+    }
+    if (elements.progressRange.value !== "0") {
+      elements.progressRange.value = "0";
+    }
     elements.progressPercent.textContent = "0%";
   }
 }
@@ -237,12 +303,8 @@ function concatenateChannels(chunks, frameCount) {
   return output;
 }
 
-function encodeWav(left, right, sampleRate, bitDepth) {
-  const frameCount = Math.min(left.length, right.length);
+function writeWavHeader(view, dataSize, sampleRate, bitDepth) {
   const bytesPerSample = bitDepth / 8;
-  const dataSize = frameCount * 2 * bytesPerSample;
-  const buffer = new ArrayBuffer(44 + dataSize);
-  const view = new DataView(buffer);
   let offset = 0;
 
   const writeString = (value) => {
@@ -273,29 +335,55 @@ function encodeWav(left, right, sampleRate, bitDepth) {
   writeUint16(bitDepth);
   writeString("data");
   writeUint32(dataSize);
+}
 
-  for (let frame = 0; frame < frameCount; frame += 1) {
-    const channels = [left[frame], right[frame]];
-    for (const rawSample of channels) {
-      const sample = clamp(rawSample, -1, 1);
-      if (bitDepth === 16) {
-        const value = Math.round(sample < 0 ? sample * 0x8000 : sample * 0x7fff);
-        view.setInt16(offset, value, true);
-        offset += 2;
-      } else {
-        let value = Math.round(
-          sample < 0 ? sample * 0x800000 : sample * 0x7fffff,
-        );
-        if (value < 0) value += 0x1000000;
-        view.setUint8(offset, value & 0xff);
-        view.setUint8(offset + 1, (value >> 8) & 0xff);
-        view.setUint8(offset + 2, (value >> 16) & 0xff);
-        offset += 3;
+// Encoded in chunks and assembled as a Blob so long files do not require one
+// giant ArrayBuffer on top of the decoded audio. Yields to the event loop
+// periodically so the window keeps responding during long encodes.
+async function encodeWav(left, right, sampleRate, bitDepth, onProgress) {
+  const frameCount = Math.min(left.length, right.length);
+  const bytesPerSample = bitDepth / 8;
+  const dataSize = frameCount * 2 * bytesPerSample;
+  const header = new ArrayBuffer(44);
+  writeWavHeader(new DataView(header), dataSize, sampleRate, bitDepth);
+
+  const parts = [header];
+  const chunkFrames = 1 << 16;
+  for (let start = 0; start < frameCount; start += chunkFrames) {
+    const frames = Math.min(chunkFrames, frameCount - start);
+    const chunk = new ArrayBuffer(frames * 2 * bytesPerSample);
+    const view = new DataView(chunk);
+    let offset = 0;
+    for (let frame = start; frame < start + frames; frame += 1) {
+      for (let channel = 0; channel < 2; channel += 1) {
+        const sample = clamp(channel === 0 ? left[frame] : right[frame], -1, 1);
+        if (bitDepth === 16) {
+          const value = Math.round(
+            sample < 0 ? sample * 0x8000 : sample * 0x7fff,
+          );
+          view.setInt16(offset, value, true);
+          offset += 2;
+        } else {
+          let value = Math.round(
+            sample < 0 ? sample * 0x800000 : sample * 0x7fffff,
+          );
+          if (value < 0) value += 0x1000000;
+          view.setUint8(offset, value & 0xff);
+          view.setUint8(offset + 1, (value >> 8) & 0xff);
+          view.setUint8(offset + 2, (value >> 16) & 0xff);
+          offset += 3;
+        }
       }
+    }
+    parts.push(chunk);
+    if (onProgress && start % (chunkFrames * 8) === 0) {
+      onProgress((start + frames) / frameCount);
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
     }
   }
 
-  return new Blob([buffer], { type: "audio/wav" });
+  if (onProgress) onProgress(1);
+  return new Blob(parts, { type: "audio/wav" });
 }
 
 function getExportFileName(parameters) {
@@ -371,10 +459,8 @@ async function saveExportNative(blob, fileName) {
   return true;
 }
 
-async function downloadExport(blob, parameters) {
-  const fileName = getExportFileName(parameters);
-  if (await saveExportNative(blob, fileName)) return;
-
+async function saveBlobAsFile(blob, fileName) {
+  if (await saveExportNative(blob, fileName)) return true;
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -383,6 +469,11 @@ async function downloadExport(blob, parameters) {
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+  return true;
+}
+
+async function downloadExport(blob, parameters) {
+  await saveBlobAsFile(blob, getExportFileName(parameters));
 }
 
 function processExportCapture(event) {
@@ -431,7 +522,7 @@ async function finishExport(cancelled) {
     state.limiter.disconnect(state.captureTap);
     state.captureTap.disconnect();
     state.captureTap.onaudioprocess = null;
-    state.limiter.connect(state.audioContext.destination);
+    state.limiter.connect(state.monitorGain);
     state.captureTap = null;
   }
   setExportControlsDisabled(false);
@@ -444,7 +535,12 @@ async function finishExport(cancelled) {
 
   const left = concatenateChannels(capture.left, capture.frames);
   const right = concatenateChannels(capture.right, capture.frames);
-  const wav = encodeWav(left, right, capture.sampleRate, capture.bitDepth);
+  const wav = await encodeWav(
+    left,
+    right,
+    capture.sampleRate,
+    capture.bitDepth,
+  );
   await downloadExport(wav, capture.parameters);
   elements.exportProgress.value = 1;
   elements.exportStatus.textContent = `导出完成：${(
@@ -454,6 +550,10 @@ async function finishExport(cancelled) {
 
 async function startSegmentExport() {
   if (state.exportCapture?.active) return;
+  if (state.recordTap) {
+    elements.exportStatus.textContent = "直播录制进行中，请先停止直播截获。";
+    return;
+  }
   ensureAudioGraph();
   if (!state.activeSource) {
     elements.exportStatus.textContent = "请先选择音频。";
@@ -503,7 +603,7 @@ async function startSegmentExport() {
   captureTap.onaudioprocess = processExportCapture;
   state.limiter.disconnect();
   state.limiter.connect(captureTap);
-  captureTap.connect(state.audioContext.destination);
+  captureTap.connect(state.monitorGain);
   state.captureTap = captureTap;
 
   state.exportCapture = {
@@ -532,7 +632,7 @@ async function startSegmentExport() {
       state.limiter.disconnect(state.captureTap);
       state.captureTap.disconnect();
       state.captureTap.onaudioprocess = null;
-      state.limiter.connect(state.audioContext.destination);
+      state.limiter.connect(state.monitorGain);
       state.captureTap = null;
     }
     state.exportCapture = null;
@@ -657,11 +757,17 @@ async function startOfflineExport() {
   const left = rendered.getChannelData(0);
   const right =
     rendered.numberOfChannels > 1 ? rendered.getChannelData(1) : rendered.getChannelData(0);
-  const wav = encodeWav(
+  const wav = await encodeWav(
     left,
     right,
     rendered.sampleRate,
     Number(elements.exportBitDepth.value),
+    (ratio) => {
+      elements.exportProgress.value = ratio;
+      elements.exportStatus.textContent = `正在编码完整 WAV…… ${Math.round(
+        ratio * 100,
+      )}%`;
+    },
   );
   await downloadExport(wav, parameters);
   setExportControlsDisabled(false);
@@ -685,6 +791,215 @@ function currentParameters() {
   const elevation = Number(elements.elevation.value);
   const distance = sliderToDistance(elements.distance.value);
   return { azimuth, elevation, distance };
+}
+
+// ---------------------------------------------------------------------------
+// 空间参数模板：导出/导入可读的 TXT，导入后立即套用
+// ---------------------------------------------------------------------------
+
+const TEMPLATE_FIELDS = new Map([
+  ["azimuth", "azimuth"],
+  ["azimuthdeg", "azimuth"],
+  ["方位角", "azimuth"],
+  ["方位", "azimuth"],
+  ["水平角", "azimuth"],
+  ["elevation", "elevation"],
+  ["elevationdeg", "elevation"],
+  ["仰角", "elevation"],
+  ["高度角", "elevation"],
+  ["distance", "distance"],
+  ["distancem", "distance"],
+  ["距离", "distance"],
+  ["volume", "volume"],
+  ["gain", "volume"],
+  ["输出音量", "volume"],
+  ["音量", "volume"],
+  ["mode", "mode"],
+  ["rendermode", "mode"],
+  ["渲染方式", "mode"],
+  ["模式", "mode"],
+  ["name", "name"],
+  ["模板名称", "name"],
+]);
+
+const TEMPLATE_MODES = new Map([
+  ["binaural", "binaural"],
+  ["双耳兼容", "binaural"],
+  ["双耳", "binaural"],
+  ["compatibility", "binaural"],
+  ["hrtf", "hrtf"],
+  ["浏览器hrtf", "hrtf"],
+  ["browserhrtf", "hrtf"],
+  ["parametric", "parametric"],
+  ["参数化hrtf", "parametric"],
+  ["参数hrtf", "parametric"],
+  ["bypass", "bypass"],
+  ["直通", "bypass"],
+  ["跳过", "bypass"],
+]);
+
+const TEMPLATE_MODE_LABELS = {
+  binaural: "双耳兼容",
+  hrtf: "浏览器 HRTF",
+  parametric: "参数化 HRTF",
+  bypass: "Bypass",
+};
+
+function normalizeTemplateKey(key) {
+  return String(key).trim().toLowerCase().replace(/\s+/g, "");
+}
+
+function parseTemplateNumber(raw) {
+  const cleaned = String(raw).replace(/[^0-9.+-]/g, "");
+  const value = Number.parseFloat(cleaned);
+  return Number.isFinite(value) ? value : null;
+}
+
+function parseSpatialTemplate(text) {
+  const values = {};
+  const ignored = [];
+  for (const rawLine of String(text).split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#") || line.startsWith("//") || line.startsWith(";")) {
+      continue;
+    }
+    const match = /^([^=:：]+)[=:：]\s*(.*)$/.exec(line);
+    if (!match) {
+      ignored.push(line);
+      continue;
+    }
+    const field = TEMPLATE_FIELDS.get(normalizeTemplateKey(match[1]));
+    if (!field) {
+      ignored.push(line);
+      continue;
+    }
+    values[field] = match[2].trim();
+  }
+  return { values, ignored };
+}
+
+function setModeFromTemplate(mode) {
+  for (const candidate of elements.modeControl.querySelectorAll("button")) {
+    candidate.classList.toggle("active", candidate.dataset.mode === mode);
+  }
+  changeMode(mode);
+}
+
+function applySpatialTemplate(values) {
+  const applied = [];
+  const notes = [];
+
+  const applyRange = (
+    field,
+    label,
+    slider,
+    min,
+    max,
+    toSlider,
+    format,
+    formatValue,
+  ) => {
+    if (values[field] === undefined) return;
+    const parsed = parseTemplateNumber(values[field]);
+    if (parsed === null) return;
+    const clamped = clamp(parsed, min, max);
+    slider.value = String(toSlider ? toSlider(clamped) : clamped);
+    applied.push(format(clamped));
+    if (clamped !== parsed) {
+      notes.push(`${label}已限幅到 ${formatValue(clamped)}`);
+    }
+  };
+
+  applyRange("azimuth", "方位角", elements.azimuth, -90, 90, null, (v) => `方位角 ${v.toFixed(1)}°`, (v) => `${v.toFixed(1)}°`);
+  applyRange("elevation", "仰角", elements.elevation, -30, 30, null, (v) => `仰角 ${v.toFixed(1)}°`, (v) => `${v.toFixed(1)}°`);
+  applyRange("distance", "距离", elements.distance, 0.2, 10, distanceToSlider, (v) => `距离 ${v.toFixed(2)} m`, (v) => `${v.toFixed(2)} m`);
+  applyRange("volume", "音量", elements.volume, 0, 100, null, (v) => `音量 ${Math.round(v)}%`, (v) => `${Math.round(v)}%`);
+
+  if (values.mode !== undefined) {
+    const mode = TEMPLATE_MODES.get(normalizeTemplateKey(values.mode));
+    if (mode) {
+      setModeFromTemplate(mode);
+      applied.push(`渲染方式 ${TEMPLATE_MODE_LABELS[mode]}`);
+    } else {
+      notes.push(`无法识别渲染方式“${values.mode}”`);
+    }
+  }
+
+  if (applied.length === 0) {
+    return { ok: false, message: "没有识别到有效的参数行。" };
+  }
+
+  updateReadouts(currentParameters());
+  updateAudioGraph(true);
+  return { ok: true, applied, notes, name: values.name };
+}
+
+function buildSpatialTemplateText() {
+  const parameters = currentParameters();
+  return [
+    "# asmr3d空间渲染器 · 空间参数模板 v1",
+    "# 每行一个参数，用 = 或 : 分隔；# // ; 开头的行是注释",
+    "# 数值可带单位，例如 0.4 m、80%、-12.5°",
+    "",
+    `模板名称 = ${state.activeSource?.title || "自定义参数"}`,
+    `方位角 = ${parameters.azimuth.toFixed(1)}`,
+    `仰角 = ${parameters.elevation.toFixed(1)}`,
+    `距离 = ${parameters.distance.toFixed(2)}`,
+    `输出音量 = ${Number(elements.volume.value).toFixed(0)}`,
+    `渲染方式 = ${state.mode}`,
+    `# 渲染方式可选：binaural / hrtf / parametric / bypass（当前 ${
+      TEMPLATE_MODE_LABELS[state.mode] || state.mode
+    }）`,
+    "",
+  ].join("\r\n");
+}
+
+function setTemplateStatus(message, stateName = "idle") {
+  elements.templateStatus.textContent = message;
+  elements.templateStatus.dataset.state = stateName;
+}
+
+function setTemplateBadge(text) {
+  elements.templateBadge.textContent = text;
+}
+
+async function exportSpatialTemplate() {
+  const text = buildSpatialTemplateText();
+  const base =
+    state.activeSource?.file?.split("/").pop()?.replace(/\.[^.]+$/, "") ||
+    "asmr3d";
+  const stamp = new Date().toISOString().replaceAll(/[:.]/g, "-").slice(0, 19);
+  const fileName = `${base}_空间参数_${stamp}.txt`;
+  await saveBlobAsFile(
+    new Blob([text], { type: "text/plain;charset=utf-8" }),
+    fileName,
+  );
+  setTemplateBadge("已导出");
+  setTemplateStatus(`已导出 ${fileName}（输出文件夹）`, "done");
+}
+
+async function importSpatialTemplate(file) {
+  if (!file) return;
+  try {
+    const { values, ignored } = parseSpatialTemplate(await file.text());
+    const result = applySpatialTemplate(values);
+    if (!result.ok) {
+      setTemplateBadge("失败");
+      setTemplateStatus(`导入失败：${result.message}`, "error");
+      return;
+    }
+    setTemplateBadge("已载入");
+    setTemplateStatus(
+      `已套用 ${result.applied.join(" · ")}${
+        result.notes.length > 0 ? `（${result.notes.join("；")}）` : ""
+      }${ignored.length > 0 ? ` · 忽略 ${ignored.length} 行无法识别的内容` : ""}`,
+      "done",
+    );
+  } catch (error) {
+    console.error(error);
+    setTemplateBadge("失败");
+    setTemplateStatus(`导入失败：${error.message}`, "error");
+  }
 }
 
 function cartesianPosition({ azimuth, elevation, distance }) {
@@ -885,6 +1200,12 @@ function ensureAudioGraph() {
   monoInput.channelCountMode = "explicit";
   monoInput.channelInterpretation = "speakers";
 
+  const liveGain = audioContext.createGain();
+  liveGain.channelCount = 2;
+  liveGain.channelCountMode = "explicit";
+  liveGain.channelInterpretation = "speakers";
+  liveGain.gain.value = 1;
+
   const hrtfPath = audioContext.createGain();
   const hrtfOutput = audioContext.createGain();
   const panner = audioContext.createPanner();
@@ -910,6 +1231,8 @@ function ensureAudioGraph() {
   const bypassOutput = audioContext.createGain();
 
   const master = audioContext.createGain();
+  const monitorGain = audioContext.createGain();
+  monitorGain.gain.value = 1;
   const limiter = audioContext.createDynamicsCompressor();
   limiter.threshold.value = -2;
   limiter.knee.value = 2;
@@ -931,14 +1254,17 @@ function ensureAudioGraph() {
   bypassOutput.connect(master);
 
   master.connect(limiter);
-  limiter.connect(audioContext.destination);
+  limiter.connect(monitorGain);
+  monitorGain.connect(audioContext.destination);
 
   Object.assign(state, {
     audio,
     audioContext,
     mediaSource,
+    liveGain,
     monoInput,
     master,
+    monitorGain,
     limiter,
     hrtfPath,
     parametricPath,
@@ -978,13 +1304,16 @@ function updateModeCrossfade() {
 }
 
 function disconnectModeInputs() {
-  for (const [source, target] of [
-    [state.mediaSource, state.monoInput],
-    [state.mediaSource, state.compatibilityPath],
-    [state.mediaSource, state.bypassPath],
-    [state.monoInput, state.hrtfPath],
-    [state.monoInput, state.parametricPath],
-  ]) {
+  const inputs = [state.mediaSource, state.liveGain].filter(Boolean);
+  const pairs = [];
+  for (const input of inputs) {
+    pairs.push([input, state.monoInput]);
+    pairs.push([input, state.compatibilityPath]);
+    pairs.push([input, state.bypassPath]);
+  }
+  pairs.push([state.monoInput, state.hrtfPath]);
+  pairs.push([state.monoInput, state.parametricPath]);
+  for (const [source, target] of pairs) {
     if (!source || !target) continue;
     try {
       source.disconnect(target);
@@ -994,18 +1323,45 @@ function disconnectModeInputs() {
   }
 }
 
+function activeInputNode() {
+  if (state.inputSource === "live" && state.liveGain) return state.liveGain;
+  return state.mediaSource;
+}
+
 function connectModeInput(mode) {
+  const input = activeInputNode();
+  if (!input) return;
   if (mode === "hrtf") {
-    state.mediaSource.connect(state.monoInput);
+    input.connect(state.monoInput);
     state.monoInput.connect(state.hrtfPath);
   } else if (mode === "parametric") {
-    state.mediaSource.connect(state.monoInput);
+    input.connect(state.monoInput);
     state.monoInput.connect(state.parametricPath);
   } else if (mode === "binaural") {
-    state.mediaSource.connect(state.compatibilityPath);
+    input.connect(state.compatibilityPath);
   } else {
-    state.mediaSource.connect(state.bypassPath);
+    input.connect(state.bypassPath);
   }
+}
+
+function switchInputSource(source) {
+  if (state.inputSource === source) return;
+  if (!state.ready) {
+    state.inputSource = source;
+    return;
+  }
+  const now = state.audioContext.currentTime;
+  state.master.gain.setTargetAtTime(0, now, 0.01);
+  window.setTimeout(() => {
+    disconnectModeInputs();
+    state.inputSource = source;
+    connectModeInput(state.mode);
+    state.master.gain.setTargetAtTime(
+      Number(elements.volume.value) / 100,
+      state.audioContext.currentTime,
+      0.015,
+    );
+  }, 40);
 }
 
 function changeMode(mode) {
@@ -1283,6 +1639,7 @@ function markMethods() {
 async function togglePlayback() {
   ensureAudioGraph();
   if (!state.activeSource) return;
+  switchInputSource("media");
   if (state.audio.currentSrc !== state.activeSource.mediaUrl) {
     state.audio.src = state.activeSource.mediaUrl;
   }
@@ -1315,6 +1672,864 @@ async function togglePlayback() {
   } Hz${latency > 0 ? ` · ${(latency * 1000).toFixed(1)} ms` : ""}`;
 }
 
+// ---------------------------------------------------------------------------
+// 视频转音频：用浏览器内置解码器抽出音轨并编码 WAV
+// ---------------------------------------------------------------------------
+
+// decodeAudioData keeps the whole decoded track in memory as float32 PCM, so
+// the practical ceiling is available RAM rather than a fixed duration.
+const CONVERT_ASSUMED_RATE = 48000;
+const CONVERT_ASSUMED_CHANNELS = 2;
+const CONVERT_MAX_HOURS = 6;
+const WAV_SIZE_LIMIT_BYTES = 3.8 * 1024 * 1024 * 1024; // RIFF 4 GB field
+
+function estimateConvertFootprint(duration, bitDepth, fileSize) {
+  const decoded =
+    duration * CONVERT_ASSUMED_RATE * CONVERT_ASSUMED_CHANNELS * 4;
+  const wav =
+    duration * CONVERT_ASSUMED_RATE * CONVERT_ASSUMED_CHANNELS * (bitDepth / 8);
+  return {
+    decoded,
+    wav,
+    // Source buffer + decoded PCM; decodeAudioData detaches the source buffer,
+    // so both only coexist briefly.
+    peak: decoded + fileSize,
+  };
+}
+
+function setConvertStatus(message, stateName = "idle") {
+  elements.convertStatus.textContent = message;
+  elements.convertStatus.dataset.state = stateName;
+}
+
+function setConvertBadge(text) {
+  elements.convertBadge.textContent = text;
+}
+
+// Reads only the container metadata, so this stays fast even for large files.
+function probeMediaDuration(file) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const media = document.createElement("video");
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      URL.revokeObjectURL(url);
+      resolve(value);
+    };
+    media.preload = "metadata";
+    media.addEventListener(
+      "loadedmetadata",
+      () => finish(Number.isFinite(media.duration) ? media.duration : null),
+      { once: true },
+    );
+    media.addEventListener("error", () => finish(null), { once: true });
+    window.setTimeout(() => finish(null), 8000);
+    media.src = url;
+  });
+}
+
+function decodeMediaToAudioBuffer(arrayBuffer) {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!state.convertContext) state.convertContext = new AudioContextClass();
+  return state.convertContext.decodeAudioData(arrayBuffer);
+}
+
+// Shows duration, predicted WAV size and memory need before converting.
+async function describeConvertFile() {
+  const [file] = elements.convertFileInput.files || [];
+  elements.convertProgress.value = 0;
+  if (!file) {
+    elements.convertButton.disabled = true;
+    setConvertBadge("待机");
+    setConvertStatus("选择视频或音频文件，抽取音轨写入输出文件夹。");
+    return;
+  }
+  setConvertBadge("就绪");
+  elements.convertButton.disabled = false;
+  setConvertStatus(`正在读取 ${file.name} 的信息……`);
+  const duration = await probeMediaDuration(file);
+  const bitDepth = Number(elements.convertBitDepth.value) || 24;
+  if (!duration) {
+    setConvertStatus(
+      `${file.name} · ${formatBytes(file.size)}（读不到时长，将直接尝试解码）`,
+    );
+    return;
+  }
+  const footprint = estimateConvertFootprint(duration, bitDepth, file.size);
+  setConvertStatus(
+    `${file.name} · ${formatTime(duration)} · 源文件 ${formatBytes(
+      file.size,
+    )} → 预计输出 ${formatBytes(footprint.wav)}（${bitDepth}-bit），转换需要约 ${formatBytes(
+      footprint.peak,
+    )} 内存`,
+  );
+}
+
+async function convertMediaToWav() {
+  const [file] = elements.convertFileInput.files || [];
+  if (!file) {
+    setConvertStatus("请先选择要转换的文件。", "error");
+    return;
+  }
+  const bitDepth = Number(elements.convertBitDepth.value) || 16;
+  elements.convertButton.disabled = true;
+  elements.convertFileInput.disabled = true;
+  elements.convertProgress.value = 0;
+  setConvertBadge("处理中");
+  setConvertStatus(`正在读取 ${file.name}……`, "running");
+
+  try {
+    const duration = await probeMediaDuration(file);
+    if (duration) {
+      if (duration > CONVERT_MAX_HOURS * 3600) {
+        throw new Error(
+          `时长约 ${(duration / 3600).toFixed(1)} 小时，超过 ${CONVERT_MAX_HOURS} 小时上限。`,
+        );
+      }
+      const footprint = estimateConvertFootprint(duration, bitDepth, file.size);
+      if (footprint.wav > WAV_SIZE_LIMIT_BYTES) {
+        throw new Error(
+          `预计输出 ${formatBytes(footprint.wav)}，超过 WAV 单文件 4 GB 上限，请改用 16-bit 或分段处理。`,
+        );
+      }
+      const memory = await state.desktop?.systemMemory?.().catch(() => null);
+      if (memory?.free && footprint.peak > memory.free * 0.85) {
+        throw new Error(
+          `预计需要约 ${formatBytes(footprint.peak)} 内存，当前可用 ${formatBytes(
+            memory.free,
+          )}。请先关闭一些程序再重试。`,
+        );
+      }
+    }
+
+    elements.convertProgress.value = 0.15;
+    setConvertStatus("正在解码音频轨道……", "running");
+    const decoded = await decodeMediaToAudioBuffer(await file.arrayBuffer());
+
+    elements.convertProgress.value = 0.6;
+    setConvertStatus("正在编码 WAV……", "running");
+    const left = decoded.getChannelData(0);
+    const right =
+      decoded.numberOfChannels > 1 ? decoded.getChannelData(1) : left;
+    const wav = await encodeWav(
+      left,
+      right,
+      decoded.sampleRate,
+      bitDepth,
+      (ratio) => {
+        elements.convertProgress.value = 0.6 + ratio * 0.3;
+        setConvertStatus(
+          `正在编码 WAV…… ${Math.round(ratio * 100)}%（${
+            decoded.numberOfChannels
+          } ch · ${decoded.sampleRate} Hz）`,
+          "running",
+        );
+      },
+    );
+
+    elements.convertProgress.value = 0.9;
+    const fileName = `${file.name.replace(/\.[^.]+$/, "")}.wav`;
+    await saveBlobAsFile(wav, fileName);
+    elements.convertProgress.value = 1;
+    setConvertBadge("完成");
+    setConvertStatus(
+      `已保存 ${fileName} · ${formatTime(decoded.duration)} · ${
+        decoded.numberOfChannels
+      } ch · ${decoded.sampleRate} Hz · ${bitDepth}-bit · ${(
+        wav.size /
+        (1024 * 1024)
+      ).toFixed(1)} MB（已写入输出文件夹）`,
+    );
+  } catch (error) {
+    console.error(error);
+    elements.convertProgress.value = 0;
+    setConvertBadge("失败");
+    setConvertStatus(
+      `转换失败：${error.message || "该文件的音轨无法解码"}`,
+      "error",
+    );
+  } finally {
+    elements.convertButton.disabled = false;
+    elements.convertFileInput.disabled = false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 直播截获：按应用进程回环 → 现有空间渲染链
+// ---------------------------------------------------------------------------
+
+class StreamingResampler {
+  constructor(ratio) {
+    this.ratio = ratio > 0 ? ratio : 1;
+    this.carry = new Float32Array(0);
+    this.position = 0;
+  }
+
+  process(input) {
+    const buffer = new Float32Array(this.carry.length + input.length);
+    buffer.set(this.carry, 0);
+    buffer.set(input, this.carry.length);
+    const estimated = Math.max(
+      0,
+      Math.floor((buffer.length - 1 - this.position) / this.ratio) + 1,
+    );
+    const output = new Float32Array(estimated);
+    let written = 0;
+    let position = this.position;
+    while (position + 1 < buffer.length && written < output.length) {
+      const index = Math.floor(position);
+      const fraction = position - index;
+      const a = buffer[index];
+      output[written] = a + (buffer[index + 1] - a) * fraction;
+      written += 1;
+      position += this.ratio;
+    }
+    const base = Math.floor(position);
+    this.carry = buffer.slice(base);
+    this.position = position - base;
+    return output.subarray(0, written);
+  }
+}
+
+function setLiveStatus(message, stateName = "idle") {
+  elements.liveStatus.textContent = message;
+  elements.liveStatus.dataset.state = stateName;
+}
+
+// Session volume scales the process-loopback capture proportionally, so the
+// original can be pushed far below audibility while the renderer applies the
+// matching digital gain. That keeps live monitoring (and live parameter
+// changes) while removing the double-audio echo.
+const SOURCE_ATTENUATION_VOLUME = 0.01; // -40 dB
+const MAX_COMPENSATION_GAIN = 1000; // +60 dB
+
+// The monitor bus sits after the recording tap, so muting it removes what you
+// hear without affecting the recording.
+function applyMonitorMute() {
+  if (!state.monitorGain || !state.audioContext) return;
+  const muted =
+    state.liveActive && elements.sourceModeSelect.value === "monitor-mute";
+  state.monitorGain.gain.setTargetAtTime(
+    muted ? 0 : 1,
+    state.audioContext.currentTime,
+    0.02,
+  );
+}
+
+async function releaseSourceHandling() {
+  state.liveCompensation = 1;
+  if (state.desktop?.restoreSourceVolume) {
+    try {
+      await state.desktop.restoreSourceVolume();
+    } catch {
+      // Ignore: the volume is restored on quit as well.
+    }
+  }
+}
+
+function renderLiveTargets() {
+  const select = elements.liveTargetSelect;
+  select.textContent = "";
+  if (state.liveTargets.length === 0) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "没有可用的截获来源";
+    select.append(option);
+    select.disabled = true;
+    elements.liveStartButton.disabled = true;
+    return;
+  }
+  state.liveTargets.forEach((target, index) => {
+    const option = document.createElement("option");
+    option.value = String(index);
+    const peakDb =
+      target.peak > 0.0005 ? `${(20 * Math.log10(target.peak)).toFixed(1)} dB` : "静音";
+    option.textContent =
+      `${target.processName} · PID ${target.processId} · ${peakDb}`;
+    select.append(option);
+  });
+  select.disabled = false;
+  elements.liveStartButton.disabled = false;
+}
+
+async function scanLiveTargets() {
+  const desktop = state.desktop;
+  if (!desktop?.listLiveTargets) {
+    elements.liveModeBadge.textContent = "不可用";
+    setLiveStatus("直播截获仅支持 Windows 桌面版。", "error");
+    return;
+  }
+  elements.liveRefreshButton.disabled = true;
+  setLiveStatus("正在扫描音频会话……");
+  try {
+    const result = await desktop.listLiveTargets();
+    if (!result?.ok) throw new Error(result?.error || "扫描失败。");
+    state.liveCapability = {
+      processLoopback: Boolean(result.processLoopback),
+      runtime: String(result.runtime || ""),
+    };
+    const targets = Array.isArray(result.targets) ? result.targets : [];
+    state.liveTargets = targets;
+    renderLiveTargets();
+    if (!state.liveCapability.processLoopback) {
+      elements.liveModeBadge.textContent = "需要 PowerShell 7";
+      elements.liveModeBadge.className = "on-warn";
+      setLiveStatus(
+        "未检测到 PowerShell 7（pwsh）。直播截获需要它按应用取流，请先安装 PowerShell 7 后重新扫描。",
+        "warn",
+      );
+      return;
+    }
+    elements.liveModeBadge.textContent = "按应用";
+    elements.liveModeBadge.className = "on-process";
+    setLiveStatus(`检测到 ${targets.length} 个音频会话，可选择任意应用截获。`);
+  } catch (error) {
+    console.error(error);
+    elements.liveModeBadge.textContent = "扫描失败";
+    setLiveStatus(error.message, "error");
+  } finally {
+    elements.liveRefreshButton.disabled = false;
+  }
+}
+
+async function ensureLiveAudioNode() {
+  if (state.liveNode || state.liveFallback) return;
+  ensureAudioGraph();
+  const context = state.audioContext;
+  const moduleUrl = new URL("live-capture-worklet.js", document.baseURI).href;
+  try {
+    await context.audioWorklet.addModule(moduleUrl);
+    const node = new AudioWorkletNode(context, "live-capture-source", {
+      numberOfInputs: 0,
+      numberOfOutputs: 1,
+      outputChannelCount: [2],
+    });
+    node.port.postMessage({ type: "enable", value: true });
+    node.connect(state.liveGain);
+    state.liveNode = node;
+  } catch (error) {
+    console.warn("AudioWorklet 不可用，回退到 ScriptProcessor。", error);
+    const processor = context.createScriptProcessor(2048, 0, 2);
+    processor.onaudioprocess = (event) => {
+      const left = event.outputBuffer.getChannelData(0);
+      const right =
+        event.outputBuffer.numberOfChannels > 1
+          ? event.outputBuffer.getChannelData(1)
+          : left;
+      queuePull(left, right);
+    };
+    processor.connect(state.liveGain);
+    state.liveFallback = processor;
+  }
+}
+
+function queuePush(left, right) {
+  const queue = state.liveQueue;
+  queue.left.push(left);
+  queue.right.push(right);
+  queue.length += left.length;
+  const limit = state.audioContext.sampleRate * 4;
+  while (queue.length > limit && queue.left.length > 1) {
+    const droppedLeft = queue.left.shift();
+    queue.right.shift();
+    queue.length -= droppedLeft.length;
+  }
+}
+
+function queuePull(left, right) {
+  const queue = state.liveQueue;
+  const frames = left.length;
+  let filled = 0;
+  while (filled < frames && queue.left.length > 0) {
+    const headLeft = queue.left[0];
+    const headRight = queue.right[0];
+    const take = Math.min(frames - filled, headLeft.length);
+    left.set(headLeft.subarray(0, take), filled);
+    right.set(headRight.subarray(0, take), filled);
+    filled += take;
+    queue.length -= take;
+    if (take === headLeft.length) {
+      queue.left.shift();
+      queue.right.shift();
+    } else {
+      queue.left[0] = headLeft.subarray(take);
+      queue.right[0] = headRight.subarray(take);
+    }
+  }
+  if (filled < frames) {
+    left.fill(0, filled);
+    right.fill(0, filled);
+  }
+}
+
+function pushLiveFrames(left, right) {
+  if (state.liveNode) {
+    const leftCopy = left.slice();
+    const rightCopy = right.slice();
+    state.liveNode.port.postMessage(
+      { type: "push", left: leftCopy, right: rightCopy },
+      [leftCopy.buffer, rightCopy.buffer],
+    );
+  } else {
+    queuePush(left, right);
+  }
+}
+
+function resetLivePipeline(header) {
+  state.liveChannels = Number(header?.channels) || 2;
+  const captureRate = Number(header?.sampleRate) || 48000;
+  const ratio = captureRate / state.audioContext.sampleRate;
+  state.liveResamplerL = new StreamingResampler(ratio);
+  state.liveResamplerR = new StreamingResampler(ratio);
+  state.liveQueue = { left: [], right: [], length: 0 };
+  if (state.liveNode) state.liveNode.port.postMessage({ type: "reset" });
+  const pending = state.livePendingChunks;
+  state.livePendingChunks = [];
+  for (const chunk of pending) handleLiveChunk(chunk);
+}
+
+function handleLiveChunk(payload) {
+  if (!state.liveResamplerL || !state.liveResamplerR) {
+    if (state.livePendingChunks.length < 64) state.livePendingChunks.push(payload);
+    return;
+  }
+  const bytes = payload?.buffer ?? payload;
+  const view =
+    payload instanceof Float32Array
+      ? payload
+      : new Float32Array(
+          bytes,
+          payload.byteOffset || 0,
+          Math.floor((payload.byteLength ?? bytes.byteLength) / 4),
+        );
+  const channels = state.liveChannels;
+  const frames = Math.floor(view.length / channels);
+  if (frames <= 0) return;
+
+  const left = new Float32Array(frames);
+  const right = new Float32Array(frames);
+  const gain = state.liveCompensation;
+  if (channels === 1) {
+    for (let frame = 0; frame < frames; frame += 1) {
+      left[frame] = view[frame] * gain;
+      right[frame] = view[frame] * gain;
+    }
+  } else {
+    for (let frame = 0; frame < frames; frame += 1) {
+      left[frame] = view[frame * channels] * gain;
+      right[frame] = view[frame * channels + 1] * gain;
+    }
+  }
+
+  const resampledLeft = state.liveResamplerL.process(left);
+  const resampledRight = state.liveResamplerR.process(right);
+  pushLiveFrames(resampledLeft, resampledRight);
+  updateLiveMeter(resampledLeft, resampledRight);
+}
+
+function updateLiveMeter(left, right) {
+  let peak = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    const value = Math.abs(left[index]);
+    if (value > peak) peak = value;
+    const other = Math.abs(right[index]);
+    if (other > peak) peak = other;
+  }
+  if (peak > state.liveLevelPeak) state.liveLevelPeak = peak;
+  updateLiveMeterUI();
+}
+
+function updateLiveMeterUI() {
+  const peak = state.liveLevelPeak;
+  elements.liveLevelBar.value = Math.min(1, peak);
+  elements.liveLevelText.textContent =
+    peak > 0.0002 ? `${(20 * Math.log10(peak)).toFixed(1)} dB` : "−∞ dB";
+}
+
+function startLiveMeterLoop() {
+  if (state.liveMeterTimer) return;
+  state.liveMeterTimer = window.setInterval(() => {
+    state.liveLevelPeak *= 0.82;
+    if (state.liveLevelPeak < 0.0002) state.liveLevelPeak = 0;
+    updateLiveMeterUI();
+  }, 100);
+}
+
+function stopLiveMeterLoop() {
+  if (!state.liveMeterTimer) return;
+  window.clearInterval(state.liveMeterTimer);
+  state.liveMeterTimer = null;
+  state.liveLevelPeak = 0;
+  updateLiveMeterUI();
+}
+
+function liveSelectedTarget() {
+  const index = Number(elements.liveTargetSelect.value);
+  if (!Number.isInteger(index)) return null;
+  return state.liveTargets[index] || null;
+}
+
+async function startLiveCapture() {
+  const desktop = state.desktop;
+  if (!desktop?.startLiveCapture) {
+    setLiveStatus("直播截获仅支持 Windows 桌面版。", "error");
+    return;
+  }
+  if (state.liveActive) return;
+  const target = liveSelectedTarget();
+  if (!target) {
+    setLiveStatus("请先选择截获来源。", "error");
+    return;
+  }
+
+  elements.liveStartButton.disabled = true;
+  elements.liveRefreshButton.disabled = true;
+  setLiveStatus(`正在启动截获：${target.processName}……`);
+
+  try {
+    ensureAudioGraph();
+    if (state.audioContext.state === "suspended") {
+      await state.audioContext.resume();
+    }
+    await ensureLiveAudioNode();
+    if (state.audio) state.audio.pause();
+
+    state.liveResamplerL = null;
+    state.liveResamplerR = null;
+    state.livePendingChunks = [];
+
+    // Lower the source app first: session volume scales the process-loopback
+    // capture, so the renderer can compensate and keep full-quality input.
+    state.liveCompensation = 1;
+    let previousVolume = null;
+    let handling = "skipped";
+    const sourceMode = elements.sourceModeSelect.value;
+    if (sourceMode === "attenuate" && desktop.attenuateSource) {
+      const attenuation = await desktop.attenuateSource({
+        processId: target.processId,
+        processName: target.processName,
+        volume: SOURCE_ATTENUATION_VOLUME,
+      });
+      if (attenuation?.ok && Number(attenuation.previous) > 0) {
+        previousVolume = Number(attenuation.previous);
+        state.liveCompensation = Math.min(
+          previousVolume / SOURCE_ATTENUATION_VOLUME,
+          MAX_COMPENSATION_GAIN,
+        );
+        handling = "ok";
+      } else {
+        handling = attenuation?.error || "failed";
+      }
+    } else if (sourceMode === "attenuate") {
+      handling = "unsupported";
+    }
+
+    const result = await desktop.startLiveCapture({
+      processId: target.processId,
+      silenceTimeoutSeconds: Number(elements.liveSilenceSelect.value) || 0,
+      restoreVolumeOnExit: previousVolume,
+    });
+    if (!result?.ok) {
+      if (previousVolume !== null && desktop.restoreSourceVolume) {
+        try {
+          await desktop.restoreSourceVolume();
+        } catch {
+          // Ignore.
+        }
+      }
+      throw new Error(result?.error || "启动直播截获失败。");
+    }
+
+    resetLivePipeline(result.header);
+    switchInputSource("live");
+    state.liveActive = true;
+    applyMonitorMute();
+    const liveName = result.header.processName;
+    elements.sourceBadge.textContent = `直播：${liveName}`;
+    elements.liveStopButton.disabled = false;
+    elements.liveTargetSelect.disabled = true;
+    startLiveMeterLoop();
+    const handlingNote =
+      {
+        ok: "已把原声压到 −40 dB 并在渲染链补偿，耳机里只会听到空间渲染结果。",
+        silent: "该应用当前音量已接近静音，无法压低原声。",
+        skipped: "未处理原声，可能出现叠加回声。",
+        unsupported: "当前环境不支持压低原声。",
+      }[handling] || `原声处理失败：${handling}`;
+    setLiveStatus(
+      `正在截获 ${liveName}（${result.header.sampleRate} Hz / ${result.header.channels} ch）。${handlingNote}`,
+      "running",
+    );
+
+    if (elements.recordToggle.checked) {
+      await beginRecording();
+    }
+  } catch (error) {
+    console.error(error);
+    setLiveStatus(error.message, "error");
+    elements.liveStartButton.disabled = false;
+    try {
+      await desktop.stopLiveCapture();
+    } catch {
+      // Ignore.
+    }
+  } finally {
+    elements.liveRefreshButton.disabled = false;
+  }
+}
+
+async function stopLiveCapture(reason) {
+  const desktop = state.desktop;
+  state.liveActive = false;
+  applyMonitorMute();
+  await releaseSourceHandling();
+  elements.liveStopButton.disabled = true;
+  elements.liveStartButton.disabled = false;
+  elements.liveTargetSelect.disabled = state.liveTargets.length === 0;
+  stopLiveMeterLoop();
+  if (state.liveNode) state.liveNode.port.postMessage({ type: "reset" });
+  state.liveResamplerL = null;
+  state.liveResamplerR = null;
+  state.livePendingChunks = [];
+  switchInputSource("media");
+  elements.sourceBadge.textContent = state.activeSource?.title || "未加载";
+
+  if (desktop?.stopLiveCapture) {
+    try {
+      await desktop.stopLiveCapture();
+    } catch {
+      // Ignore.
+    }
+  }
+
+  if (state.recording) {
+    await finishRecording();
+  }
+  setLiveStatus(reason || "已停止直播截获。");
+}
+
+// ---------------------------------------------------------------------------
+// 同步录制：渲染输出分流 → 主进程分段写盘 → 结束后合并
+// ---------------------------------------------------------------------------
+
+function attachRecordTap() {
+  if (state.recordTap || state.captureTap) return;
+  const context = state.audioContext;
+  const tap = context.createScriptProcessor(2048, 2, 2);
+  tap.onaudioprocess = (event) => {
+    const input = event.inputBuffer;
+    const output = event.outputBuffer;
+    const left = input.getChannelData(0);
+    const right =
+      input.numberOfChannels > 1 ? input.getChannelData(1) : left;
+    output.getChannelData(0).set(left);
+    if (output.numberOfChannels > 1) output.getChannelData(1).set(right);
+    if (!state.recording || !state.desktop?.sendRecordChunk) return;
+    const frames = left.length;
+    const interleaved = new Float32Array(frames * 2);
+    for (let frame = 0; frame < frames; frame += 1) {
+      interleaved[frame * 2] = left[frame];
+      interleaved[frame * 2 + 1] = right[frame];
+    }
+    state.desktop.sendRecordChunk(interleaved.buffer);
+  };
+  state.limiter.disconnect();
+  state.limiter.connect(tap);
+  tap.connect(state.monitorGain);
+  state.recordTap = tap;
+}
+
+function detachRecordTap() {
+  const tap = state.recordTap;
+  if (!tap) return;
+  try {
+    state.limiter.disconnect(tap);
+  } catch {
+    // Ignore.
+  }
+  tap.disconnect();
+  tap.onaudioprocess = null;
+  state.limiter.connect(state.monitorGain);
+  state.recordTap = null;
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return "0 MB";
+  const mb = bytes / (1024 * 1024);
+  if (mb < 1024) return `${mb.toFixed(1)} MB`;
+  return `${(mb / 1024).toFixed(2)} GB`;
+}
+
+function startRecordingPoll() {
+  if (state.recordingPollTimer) return;
+  state.recordingPollTimer = window.setInterval(async () => {
+    if (!state.recording || !state.desktop?.recordingStats) return;
+    const stats = await state.desktop.recordingStats();
+    if (!stats) return;
+    const seconds = stats.frames / state.audioContext.sampleRate;
+    elements.recordStatus.textContent = `录制中 ${formatTime(seconds)} · ${formatBytes(
+      stats.bytes,
+    )} · 已写 ${stats.segments} 个分段${stats.error ? ` · ${stats.error}` : ""}`;
+  }, 1000);
+}
+
+function stopRecordingPoll() {
+  if (!state.recordingPollTimer) return;
+  window.clearInterval(state.recordingPollTimer);
+  state.recordingPollTimer = null;
+}
+
+async function beginRecording() {
+  const desktop = state.desktop;
+  if (!desktop?.startRecording) {
+    elements.recordStatus.textContent = "当前环境不支持录制。";
+    return;
+  }
+  if (state.recording) return;
+  if (state.captureTap) {
+    elements.recordStatus.textContent = "片段导出进行中，暂时无法开始录制。";
+    return;
+  }
+  try {
+    const directory =
+      state.recordingDirectory ||
+      (await desktop.defaultRecordingDirectory());
+    state.recordingDirectory = directory;
+    const result = await desktop.startRecording({
+      directory,
+      sampleRate: state.audioContext.sampleRate,
+      channels: 2,
+      bitDepth: Number(elements.recordBitDepthSelect.value),
+      segmentSeconds: Number(elements.recordSegmentSelect.value),
+    });
+    if (!result?.ok) throw new Error(result?.error || "无法开始录制。");
+    state.recording = true;
+    attachRecordTap();
+    startRecordingPoll();
+    elements.recordBadge.textContent = "录制中";
+    elements.recordToggle.disabled = true;
+    elements.recordDirText.textContent = `保存位置：${result.directory}`;
+    elements.recordStatus.textContent = `录制中 0:00 · 0 MB · 已写 1 个分段`;
+  } catch (error) {
+    console.error(error);
+    state.recording = false;
+    elements.recordStatus.textContent = `录制失败：${error.message}`;
+  }
+}
+
+async function finishRecording() {
+  if (!state.recording) return;
+  const desktop = state.desktop;
+  state.recording = false;
+  stopRecordingPoll();
+  detachRecordTap();
+  elements.recordToggle.disabled = false;
+  elements.recordBadge.textContent = "合并中";
+  elements.recordStatus.textContent = "正在校验并合并分段……";
+  try {
+    const result = await desktop.stopRecording();
+    if (!result?.ok) throw new Error(result?.error || "合并失败。");
+    if (result.discarded || !result.filePath) {
+      elements.recordBadge.textContent = "关闭";
+      elements.recordStatus.textContent = "录制内容为空，未生成文件。";
+      return;
+    }
+    state.lastRecordingFile = result.filePath;
+    elements.recordBadge.textContent = "完成";
+    elements.recordRevealButton.disabled = false;
+    elements.recordStatus.textContent = `已保存：${result.filePath}（${formatBytes(
+      result.bytes,
+    )}，${formatTime(result.frames / state.audioContext.sampleRate)}，SHA-256 ${String(
+      result.sha256,
+    ).slice(0, 12)}…）`;
+  } catch (error) {
+    console.error(error);
+    elements.recordBadge.textContent = "失败";
+    elements.recordStatus.textContent = `合并失败，临时分段已保留：${error.message}`;
+  }
+}
+
+function bindLiveControls() {
+  state.desktop = window.asmr3dDesktop || null;
+  elements.liveRefreshButton.addEventListener("click", () => {
+    scanLiveTargets().catch((error) => setLiveStatus(error.message, "error"));
+  });
+  elements.liveStartButton.addEventListener("click", () => {
+    startLiveCapture().catch((error) => setLiveStatus(error.message, "error"));
+  });
+  elements.liveStopButton.addEventListener("click", () => {
+    stopLiveCapture("已手动停止直播截获。").catch((error) =>
+      setLiveStatus(error.message, "error"),
+    );
+  });
+  elements.sourceModeSelect.addEventListener("change", () => {
+    applyMonitorMute();
+  });
+  elements.recordDirButton.addEventListener("click", async () => {
+    if (!state.desktop?.chooseRecordingDirectory) return;
+    const result = await state.desktop.chooseRecordingDirectory();
+    if (!result) return;
+    if (result.ok && result.directory) {
+      state.recordingDirectory = result.directory;
+      elements.recordDirText.textContent = `保存位置：${result.directory}`;
+      elements.exportDirText.textContent = `成品保存位置：${result.directory}`;
+      elements.recordStatus.textContent = "未录制。";
+    } else if (result.error) {
+      elements.recordDirText.textContent = `保存位置：${result.directory || "未选择"}`;
+      elements.recordStatus.textContent = result.error;
+    }
+  });
+  elements.recordRevealButton.addEventListener("click", () => {
+    const target = state.lastRecordingFile;
+    if (state.desktop?.openOutputFolder) {
+      state.desktop.openOutputFolder(target || "");
+    } else if (target && state.desktop?.revealFile) {
+      state.desktop.revealFile(target);
+    }
+  });
+
+  if (state.desktop?.onLiveAudioChunk) {
+    state.desktop.onLiveAudioChunk((chunk) => {
+      try {
+        handleLiveChunk(chunk);
+      } catch (error) {
+        console.error(error);
+      }
+    });
+  }
+  if (state.desktop?.onLiveCaptureEnded) {
+    state.desktop.onLiveCaptureEnded((payload) => {
+      if (!state.liveActive) return;
+      const reason =
+        payload?.reason === "process-exited"
+          ? "直播应用已退出，截获自动停止。"
+          : payload?.reason === "silence"
+            ? "持续静音达到设定时长，截获自动停止。"
+            : "直播截获已结束。";
+      stopLiveCapture(reason).catch((error) => setLiveStatus(error.message, "error"));
+    });
+  }
+
+  if (state.desktop?.defaultRecordingDirectory) {
+    state.desktop
+      .defaultRecordingDirectory()
+      .then((directory) => {
+        state.recordingDirectory = directory;
+        elements.recordDirText.textContent = `保存位置：${directory}`;
+        elements.exportDirText.textContent = `成品保存位置：${directory}`;
+        elements.recordRevealButton.disabled = false;
+      })
+      .catch(() => {});
+  } else {
+    elements.recordDirButton.disabled = true;
+    elements.recordToggle.disabled = true;
+    elements.liveModeBadge.textContent = "不可用";
+    setLiveStatus("直播截获与录制仅在 Windows 桌面版可用。");
+  }
+}
+
 function bindControls() {
   elements.playButton.addEventListener("click", () => {
     togglePlayback().catch((error) => {
@@ -1331,27 +2546,40 @@ function bindControls() {
 
   elements.stopButton.addEventListener("click", () => {
     if (!state.audio) return;
+    // Stop keeps the playback position so you can resume from where you were.
+    // Use the progress slider (or 后退 10 秒) to go back.
     state.audio.pause();
-    state.audio.currentTime = 0;
     updateProgressUI({ enabled: true });
-    setStatus("已停止。", "idle");
+    setStatus("已停止播放，播放位置已保留。", "idle");
   });
 
   elements.progressRange.addEventListener("pointerdown", () => {
     state.isSeeking = true;
+    state.lastSeekAt = 0;
   });
 
   elements.progressRange.addEventListener("input", () => {
     if (!state.audio || !Number.isFinite(state.audio.duration)) return;
     state.isSeeking = true;
-    state.audio.currentTime = Number(elements.progressRange.value);
-    updateProgressUI({ enabled: true });
+    const value = Number(elements.progressRange.value);
+    const duration = state.audio.duration;
+    // Update the readouts directly: calling updateProgressUI() here would
+    // rewrite the slider attributes and break the drag.
+    elements.currentTime.textContent = formatTime(value);
+    elements.progressPercent.textContent = `${Math.round((value / duration) * 100)}%`;
+    // Seek while scrubbing, but throttled so the audio does not stutter.
+    const now = performance.now();
+    if (now - (state.lastSeekAt || 0) > 80) {
+      state.lastSeekAt = now;
+      state.audio.currentTime = value;
+    }
   });
 
   const commitSeek = () => {
     if (!state.audio || !Number.isFinite(state.audio.duration)) return;
     state.audio.currentTime = Number(elements.progressRange.value);
     state.isSeeking = false;
+    state.lastSeekAt = 0;
     updateProgressUI({ enabled: true });
   };
   elements.progressRange.addEventListener("change", commitSeek);
@@ -1363,6 +2591,21 @@ function bindControls() {
 
   elements.skipBackButton.addEventListener("click", () => seekBy(-10));
   elements.skipForwardButton.addEventListener("click", () => seekBy(10));
+
+  elements.convertFileInput.addEventListener("change", () => {
+    describeConvertFile().catch(() => {});
+  });
+  elements.convertBitDepth.addEventListener("change", () => {
+    if ((elements.convertFileInput.files || []).length > 0) {
+      describeConvertFile().catch(() => {});
+    }
+  });
+  elements.convertButton.addEventListener("click", () => {
+    convertMediaToWav().catch((error) => {
+      setConvertStatus(`转换失败：${error.message}`, "error");
+    });
+  });
+
   elements.exportButton.addEventListener("click", () => {
     startExport().catch((error) => {
       console.error(error);
@@ -1443,6 +2686,22 @@ function bindControls() {
     updateAudioGraph();
   });
 
+  elements.templateImportButton.addEventListener("click", () => {
+    elements.templateFileInput.value = "";
+    elements.templateFileInput.click();
+  });
+  elements.templateFileInput.addEventListener("change", () => {
+    const [file] = elements.templateFileInput.files || [];
+    importSpatialTemplate(file).catch((error) => {
+      setTemplateStatus(`导入失败：${error.message}`, "error");
+    });
+  });
+  elements.templateExportButton.addEventListener("click", () => {
+    exportSpatialTemplate().catch((error) => {
+      setTemplateStatus(`导出失败：${error.message}`, "error");
+    });
+  });
+
   elements.modeControl.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-mode]");
     if (!button) return;
@@ -1456,6 +2715,7 @@ function bindControls() {
 
 async function initialize() {
   bindControls();
+  bindLiveControls();
   markMethods();
   updateExportScopeControls();
   elements.distance.value = String(distanceToSlider(0.4));

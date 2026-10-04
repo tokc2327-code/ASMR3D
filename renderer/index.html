@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>asmr3d空间渲染器 v0.1测试版</title>
+    <title>asmr3d空间渲染器 v0.2公测版</title>
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="/styles.css" />
   </head>
@@ -14,12 +14,13 @@
         <h1>asmr3d空间渲染器</h1>
       </div>
       <div class="topbar-status">
-        <span class="version-badge">v0.1 测试版</span>
+        <span class="version-badge">v0.2 公测版</span>
         <div class="engine-state" id="engineState">待机</div>
       </div>
     </header>
 
-    <main class="workspace">
+    <main class="app-main">
+      <div class="workspace">
       <aside class="control-rail" aria-label="渲染控制">
         <section class="section-block source-section">
           <div class="section-heading">
@@ -28,12 +29,12 @@
           </div>
 
           <label class="field">
-            <span>步骤 1 素材</span>
+            <span>软件内置素材库</span>
             <select id="sampleSelect"></select>
           </label>
 
           <label class="field file-field">
-            <span>本地单声道文件</span>
+            <span>导入本地文件</span>
             <input id="fileInput" type="file" accept="audio/*" />
           </label>
 
@@ -92,6 +93,26 @@
             <span>输出音量 <output id="volumeOutput">80%</output></span>
             <input id="volume" type="range" min="0" max="100" step="1" value="80" />
           </label>
+
+          <div class="template-block">
+            <div class="section-subheading">
+              <h3>参数模板（TXT）</h3>
+              <span id="templateBadge">未载入</span>
+            </div>
+            <div class="template-actions">
+              <button id="templateImportButton" type="button">导入模板</button>
+              <button id="templateExportButton" type="button">导出模板</button>
+            </div>
+            <input
+              id="templateFileInput"
+              type="file"
+              accept=".txt,text/plain"
+              hidden
+            />
+            <p class="inline-note" id="templateStatus">
+              导入 TXT 会立即套用方位角 / 仰角 / 距离 / 音量 / 渲染方式。
+            </p>
+          </div>
         </section>
 
         <section class="section-block export-section">
@@ -143,6 +164,7 @@
           <p class="inline-note" id="exportStatus">
             实时捕获当前渲染结果，导出耗时与片段长度相同。
           </p>
+          <p class="inline-note" id="exportDirText">成品保存位置：程序目录下的“输出”文件夹</p>
         </section>
 
         <section class="section-block">
@@ -196,6 +218,41 @@
           </div>
         </div>
 
+        <div class="convert-panel">
+          <div class="convert-heading">
+            <div>
+              <p class="eyebrow">MEDIA CONVERT</p>
+              <h2>视频转音频</h2>
+            </div>
+            <span id="convertBadge">待机</span>
+          </div>
+
+          <input
+            id="convertFileInput"
+            class="convert-file"
+            type="file"
+            accept="video/*,audio/*,.mp4,.m4v,.mov,.webm,.m4a,.aac,.flac,.wav,.mp3,.ogg"
+          />
+
+          <div class="convert-actions">
+            <label class="field convert-depth">
+              <span>输出位深</span>
+              <select id="convertBitDepth">
+                <option value="16">16-bit PCM</option>
+                <option value="24" selected>24-bit PCM</option>
+              </select>
+            </label>
+            <button id="convertButton" class="primary-button" type="button" disabled>
+              转换为 WAV
+            </button>
+          </div>
+
+          <progress id="convertProgress" max="1" value="0"></progress>
+          <p class="inline-note" id="convertStatus">
+            选择视频或音频文件，抽取音轨写入输出文件夹。
+          </p>
+        </div>
+
         <div class="stage-subheading">
           <p class="eyebrow">RENDER TELEMETRY</p>
           <h2>空间参数读数</h2>
@@ -233,7 +290,95 @@
         </div>
       </section>
 
-      <aside class="method-rail" aria-label="实现方式">
+      <aside class="live-rail" aria-label="直播截获">
+        <section class="section-block live-section" id="liveSection">
+          <div class="section-heading">
+            <h2>直播截获</h2>
+            <span id="liveModeBadge">未扫描</span>
+          </div>
+
+          <label class="field">
+            <span>截获来源</span>
+            <select id="liveTargetSelect" disabled>
+              <option value="">请先扫描音频应用</option>
+            </select>
+          </label>
+
+          <div class="live-actions">
+            <button id="liveRefreshButton" type="button">扫描音频应用</button>
+            <button id="liveStartButton" class="primary-button" type="button" disabled>
+              开始截获
+            </button>
+            <button id="liveStopButton" type="button" disabled>停止截获</button>
+          </div>
+
+          <div class="live-meter">
+            <span>输入电平</span>
+            <progress id="liveLevelBar" max="1" value="0"></progress>
+            <strong id="liveLevelText">−∞ dB</strong>
+          </div>
+
+          <label class="field">
+            <span>原声处理</span>
+            <select id="sourceModeSelect">
+              <option value="attenuate" selected>压低原声（实时听渲染，推荐）</option>
+              <option value="monitor-mute">静音本地监听（只听原声）</option>
+            </select>
+          </label>
+
+          <p class="inline-note" id="liveStatus">尚未扫描音频应用。</p>
+
+          <div class="record-block">
+            <div class="section-subheading">
+              <h3>同步录制成品</h3>
+              <span id="recordBadge">关闭</span>
+            </div>
+
+            <label class="check-control">
+              <input id="recordToggle" type="checkbox" />
+              <span>截获时同时录制空间渲染结果</span>
+            </label>
+
+            <label class="field">
+              <span>分段时长</span>
+              <select id="recordSegmentSelect">
+                <option value="300">5 分钟</option>
+                <option value="600" selected>10 分钟</option>
+                <option value="1800">30 分钟</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>录制位深</span>
+              <select id="recordBitDepthSelect">
+                <option value="16">16-bit PCM</option>
+                <option value="24" selected>24-bit PCM</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>静音自动停止</span>
+              <select id="liveSilenceSelect">
+                <option value="0">关闭</option>
+                <option value="30" selected>30 秒</option>
+                <option value="60">60 秒</option>
+                <option value="120">120 秒</option>
+              </select>
+            </label>
+
+            <div class="live-actions">
+              <button id="recordDirButton" type="button">更改保存位置</button>
+              <button id="recordRevealButton" type="button" disabled>打开输出文件夹</button>
+            </div>
+
+            <p class="inline-note" id="recordDirText">保存位置：程序目录下的“输出”文件夹</p>
+            <p class="inline-note" id="recordStatus">未录制。</p>
+          </div>
+        </section>
+      </aside>
+      </div>
+
+      <section class="method-band" aria-label="实现方式">
         <section class="section-block method-section">
           <div class="section-heading">
             <h2>已实现方法</h2>
@@ -280,10 +425,17 @@
               <strong>固定输出链</strong>
               <span>展示 AudioContext 基础输出延时。</span>
             </li>
+            <li data-method="live-capture">
+              <strong>直播截获</strong>
+              <span>按应用进程回环实时取流，只抓取所选应用。</span>
+            </li>
+            <li data-method="live-recording">
+              <strong>分段持续录制</strong>
+              <span>边渲染边分段写盘，直播结束后校验并合并为整段 WAV。</span>
+            </li>
           </ol>
         </section>
-
-      </aside>
+      </section>
     </main>
 
     <footer class="statusbar">

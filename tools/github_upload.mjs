@@ -8,7 +8,7 @@ const SOURCE_DIR = path.join(
   ROOT,
   "dist",
   "github-package",
-  "asmr3d-v0.1-source",
+  "asmr3d-v0.2-source",
 );
 const RELEASE_DIR = path.join(
   ROOT,
@@ -18,9 +18,24 @@ const RELEASE_DIR = path.join(
 );
 const OWNER = "tokc2327-code";
 const REPO = "ASMR3D";
-const TOKEN = process.env.GITHUB_TOKEN;
+// Token can come from the environment or from tools/.github-token (gitignored)
+// so it never needs to be pasted anywhere permanent.
+function readToken() {
+  if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN.trim();
+  const tokenFile = path.join(__dirname, ".github-token");
+  if (fs.existsSync(tokenFile)) {
+    return fs.readFileSync(tokenFile, "utf8").trim();
+  }
+  return "";
+}
 
-if (!TOKEN) throw new Error("GITHUB_TOKEN is required");
+const TOKEN = readToken();
+
+if (!TOKEN) {
+  throw new Error(
+    "缺少 GitHub 令牌：请设置环境变量 GITHUB_TOKEN，或把令牌写入 tools/.github-token（该文件不会被提交）。",
+  );
+}
 
 const headers = {
   Accept: "application/vnd.github+json",
@@ -149,7 +164,7 @@ async function uploadSource() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      message: "Initial open source release v0.1",
+      message: "Initial open source release v0.2",
       tree: tree.sha,
       parents: currentCommit ? [currentCommit.sha] : [],
     }),
@@ -201,7 +216,7 @@ async function updateRepositoryMetadata() {
 
 async function getOrCreateRelease() {
   try {
-    return await github(`/repos/${OWNER}/${REPO}/releases/tags/v0.1-test`);
+    return await github(`/repos/${OWNER}/${REPO}/releases/tags/v0.2-beta`);
   } catch (error) {
     if (!String(error.message).includes("404")) throw error;
   }
@@ -209,9 +224,9 @@ async function getOrCreateRelease() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      tag_name: "v0.1-test",
+      tag_name: "v0.2-beta",
       target_commitish: "main",
-      name: "asmr3d空间渲染器 v0.1 测试版",
+      name: "asmr3d空间渲染器 v0.2 公测版",
       body:
         "首个公开测试版本。包含 Android APK、Windows 便携版和网页版资源。代码使用 MIT License，测试音频使用 CC0 素材。",
       draft: false,

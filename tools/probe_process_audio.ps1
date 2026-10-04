@@ -2,10 +2,26 @@ param(
     [int]$ProcessId = 0,
     [string]$ProcessName = "",
     [int]$DurationSeconds = 8,
-    [string]$OutputPath = ""
+    [string]$OutputPath = "",
+    [int]$SilenceTimeoutSeconds = 0,
+    [switch]$SetMute,
+    [string]$MuteState = "true",
+    [string]$SetVolume = "",
+    [switch]$GetVolume,
+    [string]$RestoreVolumeOnExit = "",
+    [int]$ParentProcessId = 0,
+    [switch]$ListJson,
+    [switch]$StreamToStdout
 )
 
 $ErrorActionPreference = "Stop"
+
+# Console output defaults to the system ANSI code page when stdout is a pipe,
+# which mangles non-ASCII process names in the JSON we emit.
+try {
+    [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+} catch {
+}
 
 $source = @"
 using System;
@@ -169,6 +185,17 @@ public static class ProcessAudioProbe
     }
 
     [ComImport]
+    [Guid("87CE5498-68D6-44E5-9215-6DA47EF883D8")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface ISimpleAudioVolume
+    {
+        int SetMasterVolume(float level, ref Guid eventContext);
+        int GetMasterVolume(out float level);
+        int SetMute(bool mute, ref Guid eventContext);
+        int GetMute(out bool mute);
+    }
+
+    [ComImport]
     [Guid("77AA99A0-1BD6-484F-8BC7-2C654C9A9B6F")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     private interface IAudioSessionManager2
@@ -229,7 +256,8 @@ public static class ProcessAudioProbe
                 Marshal.ThrowExceptionForHR(control2.GetProcessId(out processId));
                 float peak;
                 Marshal.ThrowExceptionForHR(meter.GetPeakValue(out peak));
-                if (!peaks.TryGetValue(processId, out SessionPeak info))
+                SessionPeak info;
+                if (!peaks.TryGetValue(processId, out info))
                 {
                     string processName = "";
                     try { processName = Process.GetProcessById((int)processId).ProcessName; } catch { }
@@ -265,20 +293,177 @@ public static class ProcessAudioProbe
         return 0;
     }
 
-    [ComImport]
-    [Guid("72A22D78-CDE4-431D-B8CC-843A71199B6D")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IActivateAudioInterfaceAsyncOperation
+    // Sets every audio session of a process to the given volume and returns
+    // the previous value so it can be restored. Session volume scales the
+    // process-loopback capture proportionally, so lowering it makes the
+    // original inaudible while the capture stays usable once the renderer
+    // compensates with the matching gain.
+    public static float SetProcessVolume(int processId, float level)
     {
-        int GetActivateResult(out int activateResult, out IntPtr activatedInterface);
+        return SetProcessVolume(processId, level, true);
     }
 
-    [ComImport]
-    [Guid("41D949AB-9862-444A-80F6-C261334DA5EB")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IActivateAudioInterfaceCompletionHandler
+    public static float SetProcessVolume(int processId, float level, bool apply)
     {
-        void ActivateCompleted(IActivateAudioInterfaceAsyncOperation activateOperation);
+        var enumerator = (IMMDeviceEnumerator)(new MMDeviceEnumeratorComObject());
+        IMMDevice device = null;
+        object sessionManagerObject = null;
+        IAudioSessionManager2 sessionManager = null;
+        IAudioSessionEnumerator sessionEnumerator = null;
+        float previous = -1f;
+        try
+        {
+            Marshal.ThrowExceptionForHR(enumerator.GetDefaultAudioEndpoint(
+                EDataFlow.eRender, ERole.eMultimedia, out device));
+            Guid sessionManagerIid = typeof(IAudioSessionManager2).GUID;
+            Marshal.ThrowExceptionForHR(device.Activate(
+                ref sessionManagerIid, CLSCTX_ALL, IntPtr.Zero, out sessionManagerObject));
+            sessionManager = (IAudioSessionManager2)sessionManagerObject;
+            Marshal.ThrowExceptionForHR(sessionManager.GetSessionEnumerator(out sessionEnumerator));
+
+            int count;
+            Marshal.ThrowExceptionForHR(sessionEnumerator.GetCount(out count));
+            for (int index = 0; index < count; index++)
+            {
+                IAudioSessionControl control;
+                Marshal.ThrowExceptionForHR(sessionEnumerator.GetSession(index, out control));
+                if (control == null) continue;
+                var control2 = control as IAudioSessionControl2;
+                uint sessionProcessId;
+                if (control2 != null &&
+                    control2.GetProcessId(out sessionProcessId) == 0 &&
+                    (int)sessionProcessId == processId)
+                {
+                    var volume = control as ISimpleAudioVolume;
+                    if (volume != null)
+                    {
+                        float current;
+                        if (volume.GetMasterVolume(out current) == 0)
+                        {
+                            if (previous < 0f) previous = current;
+                            if (apply)
+                            {
+                                Guid eventContext = Guid.Empty;
+                                volume.SetMasterVolume(level, ref eventContext);
+                            }
+                        }
+                    }
+                }
+                if (Marshal.IsComObject(control)) Marshal.ReleaseComObject(control);
+            }
+        }
+        finally
+        {
+            if (sessionEnumerator != null && Marshal.IsComObject(sessionEnumerator)) Marshal.ReleaseComObject(sessionEnumerator);
+            if (sessionManager != null && Marshal.IsComObject(sessionManager)) Marshal.ReleaseComObject(sessionManager);
+            if (device != null && Marshal.IsComObject(device)) Marshal.ReleaseComObject(device);
+            if (enumerator != null && Marshal.IsComObject(enumerator)) Marshal.ReleaseComObject(enumerator);
+        }
+        return previous;
+    }
+
+    // Mutes or unmutes every audio session owned by a process.
+    // Watches the host process on a dedicated thread. If the host dies while
+    // the capture thread is blocked writing to a full pipe, this still restores
+    // the source app's volume and exits.
+    public static void StartParentWatchdog(int parentProcessId, int targetProcessId, float restoreVolume)
+    {
+        string logPath = Environment.GetEnvironmentVariable("ASMR3D_WATCHDOG_LOG");
+        if (string.IsNullOrEmpty(logPath))
+        {
+            logPath = Path.Combine(Path.GetTempPath(), "asmr3d-capture-watchdog.log");
+        }
+        var watchdog = new Thread(delegate()
+        {
+            Action<string> log = delegate(string message)
+            {
+                try
+                {
+                    File.AppendAllText(
+                        logPath,
+                        DateTime.Now.ToString("HH:mm:ss.fff") + " " + message + Environment.NewLine);
+                }
+                catch { }
+            };
+            log("watchdog started parent=" + parentProcessId + " target=" + targetProcessId + " restore=" + restoreVolume);
+            while (true)
+            {
+                Thread.Sleep(2000);
+                bool alive = false;
+                try
+                {
+                    alive = !Process.GetProcessById(parentProcessId).HasExited;
+                }
+                catch
+                {
+                    alive = false;
+                }
+                if (!alive)
+                {
+                    log("parent gone; restoring volume");
+                    if (restoreVolume >= 0f)
+                    {
+                        try { SetProcessVolume(targetProcessId, restoreVolume); }
+                        catch (Exception exception) { log("restore failed: " + exception.Message); }
+                    }
+                    log("exiting");
+                    Environment.Exit(0);
+                }
+            }
+        });
+        watchdog.IsBackground = true;
+        watchdog.Start();
+    }
+
+    public static int SetProcessMute(int processId, bool mute)
+    {
+        var enumerator = (IMMDeviceEnumerator)(new MMDeviceEnumeratorComObject());
+        IMMDevice device = null;
+        object sessionManagerObject = null;
+        IAudioSessionManager2 sessionManager = null;
+        IAudioSessionEnumerator sessionEnumerator = null;
+        int applied = 0;
+        try
+        {
+            Marshal.ThrowExceptionForHR(enumerator.GetDefaultAudioEndpoint(
+                EDataFlow.eRender, ERole.eMultimedia, out device));
+            Guid sessionManagerIid = typeof(IAudioSessionManager2).GUID;
+            Marshal.ThrowExceptionForHR(device.Activate(
+                ref sessionManagerIid, CLSCTX_ALL, IntPtr.Zero, out sessionManagerObject));
+            sessionManager = (IAudioSessionManager2)sessionManagerObject;
+            Marshal.ThrowExceptionForHR(sessionManager.GetSessionEnumerator(out sessionEnumerator));
+
+            int count;
+            Marshal.ThrowExceptionForHR(sessionEnumerator.GetCount(out count));
+            for (int index = 0; index < count; index++)
+            {
+                IAudioSessionControl control;
+                Marshal.ThrowExceptionForHR(sessionEnumerator.GetSession(index, out control));
+                if (control == null) continue;
+                var control2 = control as IAudioSessionControl2;
+                uint sessionProcessId;
+                if (control2 != null &&
+                    control2.GetProcessId(out sessionProcessId) == 0 &&
+                    (int)sessionProcessId == processId)
+                {
+                    var volume = control as ISimpleAudioVolume;
+                    if (volume != null)
+                    {
+                        Guid eventContext = Guid.Empty;
+                        if (volume.SetMute(mute, ref eventContext) == 0) applied++;
+                    }
+                }
+                if (Marshal.IsComObject(control)) Marshal.ReleaseComObject(control);
+            }
+        }
+        finally
+        {
+            if (sessionEnumerator != null && Marshal.IsComObject(sessionEnumerator)) Marshal.ReleaseComObject(sessionEnumerator);
+            if (sessionManager != null && Marshal.IsComObject(sessionManager)) Marshal.ReleaseComObject(sessionManager);
+            if (device != null && Marshal.IsComObject(device)) Marshal.ReleaseComObject(device);
+            if (enumerator != null && Marshal.IsComObject(enumerator)) Marshal.ReleaseComObject(enumerator);
+        }
+        return applied;
     }
 
     [ComImport]
@@ -310,6 +495,42 @@ public static class ProcessAudioProbe
         int GetNextPacketSize(out uint frames);
     }
 
+    private static float[] ConvertBlockToFloat(
+        IntPtr data, int frames, int channels, ushort formatTag, ushort bitsPerSample,
+        bool isFloat)
+    {
+        int total = frames * channels;
+        float[] block = new float[total];
+        if (isFloat)
+        {
+            Marshal.Copy(data, block, 0, total);
+        }
+        else if (bitsPerSample == 16)
+        {
+            short[] source = new short[total];
+            Marshal.Copy(data, source, 0, total);
+            for (int index = 0; index < total; index++) block[index] = source[index] / 32768f;
+        }
+        else if (bitsPerSample == 24)
+        {
+            byte[] source = new byte[total * 3];
+            Marshal.Copy(data, source, 0, source.Length);
+            for (int index = 0; index < total; index++)
+            {
+                int value = source[index * 3] | (source[index * 3 + 1] << 8) | (source[index * 3 + 2] << 16);
+                if ((value & 0x800000) != 0) value -= 0x1000000;
+                block[index] = value / 8388608f;
+            }
+        }
+        else if (bitsPerSample == 32)
+        {
+            int[] source = new int[total];
+            Marshal.Copy(data, source, 0, total);
+            for (int index = 0; index < total; index++) block[index] = (float)(source[index] / 2147483648.0);
+        }
+        return block;
+    }
+
     [DllImport("Mmdevapi.dll", ExactSpelling = true)]
     private static extern int ActivateAudioInterfaceAsync(
         [MarshalAs(UnmanagedType.LPWStr)] string deviceInterfacePath,
@@ -317,49 +538,6 @@ public static class ProcessAudioProbe
         ref PROPVARIANT activationParams,
         IActivateAudioInterfaceCompletionHandler completionHandler,
         out IActivateAudioInterfaceAsyncOperation activationOperation);
-
-    private sealed class CompletionHandler : IActivateAudioInterfaceCompletionHandler, IDisposable
-    {
-        private readonly ManualResetEvent completed = new ManualResetEvent(false);
-        public int ResultCode;
-        public IntPtr ActivatedInterface;
-        public Exception Error;
-
-        public void ActivateCompleted(IActivateAudioInterfaceAsyncOperation operation)
-        {
-            try
-            {
-                int resultCode;
-                IntPtr activatedInterface;
-                Marshal.ThrowExceptionForHR(operation.GetActivateResult(out resultCode, out activatedInterface));
-                ResultCode = resultCode;
-                ActivatedInterface = activatedInterface;
-            }
-            catch (Exception exception)
-            {
-                Error = exception;
-            }
-            finally
-            {
-                completed.Set();
-            }
-        }
-
-        public void Wait()
-        {
-            if (!completed.WaitOne(15000))
-            {
-                throw new TimeoutException("Timed out waiting for process loopback activation.");
-            }
-            if (Error != null) throw Error;
-            Marshal.ThrowExceptionForHR(ResultCode);
-        }
-
-        public void Dispose()
-        {
-            completed.Dispose();
-        }
-    }
 
     public sealed class Result
     {
@@ -369,9 +547,50 @@ public static class ProcessAudioProbe
         public long Frames;
         public double Peak;
         public double Rms;
+        public string StoppedReason = "duration";
+        public bool SilenceDetected;
     }
 
     public static Result Capture(int processId, int durationSeconds)
+    {
+        return Capture(processId, durationSeconds, null, 0, false);
+    }
+
+    public static Result Capture(int processId, int durationSeconds, Stream output)
+    {
+        return Capture(processId, durationSeconds, output, 0, false);
+    }
+
+    public static Result Capture(int processId, int durationSeconds, Stream output, int silenceTimeoutSeconds, bool stopOnProcessExit)
+    {
+        // ActivateAudioInterfaceAsync is only accepted from a multithreaded
+        // apartment. Windows PowerShell 5.1 (.NET Framework) runs scripts on an
+        // STA thread, so every capture runs on a dedicated MTA worker thread.
+        Result result = null;
+        Exception failure = null;
+        var worker = new Thread(delegate()
+        {
+            try
+            {
+                result = CaptureCore(processId, durationSeconds, output, silenceTimeoutSeconds, stopOnProcessExit);
+            }
+            catch (Exception exception)
+            {
+                failure = exception;
+            }
+        });
+        worker.IsBackground = true;
+        try { worker.SetApartmentState(ApartmentState.MTA); } catch { }
+        worker.Start();
+        worker.Join();
+        if (failure != null)
+        {
+            throw new Exception("mta-worker | " + failure.Message, failure);
+        }
+        return result;
+    }
+
+    private static Result CaptureCore(int processId, int durationSeconds, Stream output, int silenceTimeoutSeconds, bool stopOnProcessExit)
     {
         const int channels = 2;
         const int sampleRate = 48000;
@@ -388,14 +607,16 @@ public static class ProcessAudioProbe
 
         IntPtr activationPointer = Marshal.AllocHGlobal(Marshal.SizeOf<AUDIOCLIENT_ACTIVATION_PARAMS>());
         IntPtr formatPointer = IntPtr.Zero;
-        var completionHandler = new CompletionHandler();
+        var completionHandler = new AudioActivationCompletionHandler();
         IActivateAudioInterfaceAsyncOperation asyncOperation = null;
         IAudioClient audioClient = null;
         IAudioCaptureClient captureClient = null;
         var samples = new List<float>();
+        string step = "prepare";
 
         try
         {
+            step = "marshal-activation-params";
             Marshal.StructureToPtr(activationParams, activationPointer, false);
             var propVariant = new PROPVARIANT
             {
@@ -408,13 +629,16 @@ public static class ProcessAudioProbe
             };
 
             Guid audioClientIid = IID_IAudioClient;
+            step = "activate-async";
             Marshal.ThrowExceptionForHR(ActivateAudioInterfaceAsync(
                 VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK,
                 ref audioClientIid,
                 ref propVariant,
                 completionHandler,
                 out asyncOperation));
+            step = "wait-completion";
             completionHandler.Wait();
+            step = "get-object-for-iunknown";
             audioClient = (IAudioClient)Marshal.GetObjectForIUnknown(completionHandler.ActivatedInterface);
             Marshal.Release(completionHandler.ActivatedInterface);
             completionHandler.ActivatedInterface = IntPtr.Zero;
@@ -438,6 +662,7 @@ public static class ProcessAudioProbe
             formatPointer = Marshal.AllocHGlobal(Marshal.SizeOf<WAVEFORMATEXTENSIBLE>());
             Marshal.StructureToPtr(format, formatPointer, false);
 
+            step = "initialize";
             Marshal.ThrowExceptionForHR(audioClient.Initialize(
                 AUDCLNT_SHAREMODE_SHARED,
                 AUDCLNT_STREAMFLAGS_LOOPBACK,
@@ -448,10 +673,12 @@ public static class ProcessAudioProbe
 
             Guid captureClientIid = typeof(IAudioCaptureClient).GUID;
             IntPtr captureClientPointer;
+            step = "get-service";
             Marshal.ThrowExceptionForHR(audioClient.GetService(ref captureClientIid, out captureClientPointer));
             captureClient = (IAudioCaptureClient)Marshal.GetObjectForIUnknown(captureClientPointer);
             Marshal.Release(captureClientPointer);
 
+            step = "start";
             Marshal.ThrowExceptionForHR(audioClient.Start());
             var result = new Result
             {
@@ -459,10 +686,44 @@ public static class ProcessAudioProbe
                 SampleRate = sampleRate
             };
             double sumSquares = 0;
-            DateTime deadline = DateTime.UtcNow.AddSeconds(durationSeconds);
+            DateTime deadline = durationSeconds > 0
+                ? DateTime.UtcNow.AddSeconds(durationSeconds)
+                : DateTime.MaxValue;
+            DateTime lastAudibleUtc = DateTime.UtcNow;
+            Process targetProcess = null;
+            bool trackProcess = false;
+            if (stopOnProcessExit)
+            {
+                try
+                {
+                    targetProcess = Process.GetProcessById(processId);
+                    trackProcess = true;
+                }
+                catch { }
+            }
 
             while (DateTime.UtcNow < deadline)
             {
+                if (trackProcess)
+                {
+                    // Browser processes can deny exit-status queries, which
+                    // must not abort an otherwise healthy capture.
+                    bool exited = false;
+                    try { exited = targetProcess.HasExited; } catch { exited = false; }
+                    if (exited)
+                    {
+                        result.StoppedReason = "process-exited";
+                        break;
+                    }
+                }
+                if (silenceTimeoutSeconds > 0 &&
+                    (DateTime.UtcNow - lastAudibleUtc).TotalSeconds >= silenceTimeoutSeconds)
+                {
+                    result.StoppedReason = "silence";
+                    result.SilenceDetected = true;
+                    break;
+                }
+
                 uint packetFrames;
                 Marshal.ThrowExceptionForHR(captureClient.GetNextPacketSize(out packetFrames));
                 if (packetFrames == 0)
@@ -484,14 +745,27 @@ public static class ProcessAudioProbe
                         int totalSamples = checked((int)(frames * channels));
                         float[] block = new float[totalSamples];
                         Marshal.Copy(data, block, 0, totalSamples);
+                        bool audible = false;
                         for (int index = 0; index < totalSamples; index++)
                         {
                             double value = block[index];
                             double absolute = Math.Abs(value);
                             if (absolute > result.Peak) result.Peak = absolute;
+                            if (absolute > 0.0009) audible = true;
                             sumSquares += value * value;
                         }
-                        samples.AddRange(block);
+                        if (audible) lastAudibleUtc = DateTime.UtcNow;
+                        if (output != null)
+                        {
+                            byte[] bytes = new byte[block.Length * 4];
+                            Buffer.BlockCopy(block, 0, bytes, 0, bytes.Length);
+                            output.Write(bytes, 0, bytes.Length);
+                            output.Flush();
+                        }
+                        else
+                        {
+                            samples.AddRange(block);
+                        }
                         result.Frames += frames;
                     }
                     Marshal.ThrowExceptionForHR(captureClient.ReleaseBuffer(frames));
@@ -504,6 +778,12 @@ public static class ProcessAudioProbe
                 ? Math.Sqrt(sumSquares / samples.Count)
                 : 0;
             return result;
+        }
+        catch (Exception exception)
+        {
+            throw new Exception(
+                "capture-step=" + step + " | " + exception.GetType().Name + ": " + exception.Message,
+                exception);
         }
         finally
         {
@@ -551,21 +831,155 @@ public static class ProcessAudioProbe
         }
     }
 }
-"@
 
-if ($PSVersionTable.PSVersion.Major -ge 6) {
-    Add-Type -TypeDefinition $source -Language CSharp -CompilerOptions "/unsafe"
-} else {
-    $compilerParameters = New-Object System.CodeDom.Compiler.CompilerParameters
-    $compilerParameters.CompilerOptions = "/unsafe"
-    Add-Type -TypeDefinition $source -Language CSharp -CompilerParameters $compilerParameters
+// The completion handler must be a top-level, COM-visible type. Windows
+// PowerShell 5.1 (.NET Framework) cannot build a usable COM callable wrapper
+// for a private nested class, which makes process-loopback activation fail
+// with E_ILLEGAL_METHOD_CALL / E_NOTIMPL.
+[ComImport]
+[Guid("72A22D78-CDE4-431D-B8CC-843A71199B6D")]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IActivateAudioInterfaceAsyncOperation
+{
+    int GetActivateResult(out int activateResult, out IntPtr activatedInterface);
 }
 
-$sessionPeaks = [ProcessAudioProbe]::GetSessionPeaks(12)
-Write-Host "Active audio sessions:"
-$sessionPeaks | Select-Object ProcessId, ProcessName, Peak |
-    Format-Table -AutoSize |
-    Out-Host
+[ComVisible(true)]
+[Guid("41D949AB-9862-444A-80F6-C261334DA5EB")]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IActivateAudioInterfaceCompletionHandler
+{
+    void ActivateCompleted(IActivateAudioInterfaceAsyncOperation activateOperation);
+}
+
+[ComVisible(true)]
+public sealed class AudioActivationCompletionHandler : IActivateAudioInterfaceCompletionHandler, IDisposable
+{
+    private readonly ManualResetEvent completed = new ManualResetEvent(false);
+    public int ResultCode;
+    public IntPtr ActivatedInterface;
+    public Exception Error;
+
+    public void ActivateCompleted(IActivateAudioInterfaceAsyncOperation operation)
+    {
+        try
+        {
+            int resultCode;
+            IntPtr activatedInterface;
+            Marshal.ThrowExceptionForHR(operation.GetActivateResult(out resultCode, out activatedInterface));
+            ResultCode = resultCode;
+            ActivatedInterface = activatedInterface;
+        }
+        catch (Exception exception)
+        {
+            Error = exception;
+        }
+        finally
+        {
+            completed.Set();
+        }
+    }
+
+    public void Wait()
+    {
+        if (!completed.WaitOne(15000))
+        {
+            throw new TimeoutException("Timed out waiting for process loopback activation.");
+        }
+        if (Error != null) throw Error;
+        Marshal.ThrowExceptionForHR(ResultCode);
+    }
+
+    public void Dispose()
+    {
+        completed.Dispose();
+    }
+}
+"@
+
+Add-Type -TypeDefinition $source -Language CSharp
+
+$processLoopbackSupported = $PSVersionTable.PSVersion.Major -ge 6
+
+if ($SetMute) {
+    if ($ProcessId -le 0) {
+        [Console]::Error.WriteLine("SetMute requires -ProcessId.")
+        exit 4
+    }
+    $muteValue = -not (@("false", "0", "no", "off") -contains $MuteState.ToLowerInvariant())
+    $applied = [ProcessAudioProbe]::SetProcessMute($ProcessId, $muteValue)
+    [Console]::Out.WriteLine(([pscustomobject]@{
+        type      = "mute"
+        processId = $ProcessId
+        mute      = $muteValue
+        applied   = $applied
+    } | ConvertTo-Json -Compress))
+    exit 0
+}
+
+if ($SetVolume -ne "") {
+    if ($ProcessId -le 0) {
+        [Console]::Error.WriteLine("SetVolume requires -ProcessId.")
+        exit 4
+    }
+    $level = [float]$SetVolume
+    if ($level -lt 0) { $level = 0 }
+    if ($level -gt 1) { $level = 1 }
+    $previous = [ProcessAudioProbe]::SetProcessVolume($ProcessId, $level)
+    [Console]::Out.WriteLine(([pscustomobject]@{
+        type      = "session-volume"
+        processId = $ProcessId
+        volume    = $level
+        previous  = $previous
+    } | ConvertTo-Json -Compress))
+    exit 0
+}
+
+if ($GetVolume) {
+    if ($ProcessId -le 0) {
+        [Console]::Error.WriteLine("GetVolume requires -ProcessId.")
+        exit 4
+    }
+    $current = [ProcessAudioProbe]::SetProcessVolume($ProcessId, 0.0, $false)
+    [Console]::Out.WriteLine(([pscustomobject]@{
+        type      = "session-volume"
+        processId = $ProcessId
+        current   = $current
+    } | ConvertTo-Json -Compress))
+    exit 0
+}
+
+if ($ListJson) {
+    $targets = @()
+    if ($processLoopbackSupported) {
+        $sessionPeaks = [ProcessAudioProbe]::GetSessionPeaks(12)
+        foreach ($session in $sessionPeaks) {
+            if ($session.ProcessId -le 4) { continue }
+            $targets += [pscustomobject]@{
+                processId   = [int]$session.ProcessId
+                processName = [string]$session.ProcessName
+                peak        = [Math]::Round([double]$session.Peak, 6)
+            }
+        }
+    }
+    $payload = [pscustomobject]@{
+        type              = "targets"
+        processLoopback   = $processLoopbackSupported
+        runtime           = $PSVersionTable.PSVersion.ToString()
+        targets           = @($targets)
+    }
+    [Console]::Out.WriteLine(($payload | ConvertTo-Json -Depth 5 -Compress))
+    exit 0
+}
+
+if (-not $processLoopbackSupported) {
+    $message = "Process loopback requires PowerShell 7 (pwsh); this host is Windows PowerShell $($PSVersionTable.PSVersion)."
+    if ($StreamToStdout) {
+        [Console]::Error.WriteLine($message)
+        exit 3
+    }
+    throw $message
+}
 
 if ($ProcessId -le 0) {
     $allowedNames = if ($ProcessName) {
@@ -577,12 +991,71 @@ if ($ProcessId -le 0) {
 }
 
 if ($ProcessId -le 0) {
+    if ($StreamToStdout) {
+        [Console]::Error.WriteLine("No active audio process was found.")
+        exit 2
+    }
     throw "No active audio process was found."
 }
 
 $target = Get-Process -Id $ProcessId -ErrorAction Stop
 $ProcessName = $target.ProcessName
+$captureLabel = "$ProcessName ($ProcessId)"
+
+if ($StreamToStdout) {
+    $header = [pscustomobject]@{
+        type        = "header"
+        mode        = "process"
+        processId   = $ProcessId
+        processName = $ProcessName
+        channels    = 2
+        sampleRate  = 48000
+        format      = "f32le"
+    } | ConvertTo-Json -Compress
+    $stdout = [Console]::OpenStandardOutput()
+    $headerBytes = [System.Text.Encoding]::UTF8.GetBytes($header + "`n")
+    $stdout.Write($headerBytes, 0, $headerBytes.Length)
+    $stdout.Flush()
+    [Console]::Error.WriteLine(
+        "streaming $($header.mode) $captureLabel parent=$ParentProcessId restore=$RestoreVolumeOnExit")
+    if ($ParentProcessId -gt 0) {
+        $restoreValue = [float]-1
+        if ($RestoreVolumeOnExit -ne "") {
+            $restoreValue = [float]$RestoreVolumeOnExit
+        }
+        [ProcessAudioProbe]::StartParentWatchdog(
+            $ParentProcessId, $ProcessId, $restoreValue)
+    }
+    try {
+        $streamResult = [ProcessAudioProbe]::Capture(
+            $ProcessId, 0, $stdout, $SilenceTimeoutSeconds, $true)
+        [Console]::Error.WriteLine("capture-reason: $($streamResult.StoppedReason)")
+    } catch {
+        [Console]::Error.WriteLine("capture-reason: failed")
+        [Console]::Error.WriteLine("capture-ended: $($_.Exception.Message)")
+    }
+    if ($RestoreVolumeOnExit -ne "") {
+        # Safety net: if the host app dies, the broken pipe ends the capture and
+        # this restores the source app's original volume.
+        try {
+            [void][ProcessAudioProbe]::SetProcessVolume(
+                $ProcessId, [float]$RestoreVolumeOnExit)
+            [Console]::Error.WriteLine("restored-source-volume")
+        } catch {
+        }
+    }
+    try { $stdout.Flush() } catch { }
+    exit 0
+}
+
+$sessionPeaks = [ProcessAudioProbe]::GetSessionPeaks(12)
+Write-Host "Active audio sessions:"
+$sessionPeaks | Select-Object ProcessId, ProcessName, Peak |
+    Format-Table -AutoSize |
+    Out-Host
 Write-Host "Target process: $($target.ProcessName) ($ProcessId)"
+
+Write-Host "Capture mode: $captureLabel"
 $processCpuBefore = [System.Diagnostics.Process]::GetCurrentProcess().TotalProcessorTime.TotalSeconds
 $wallClock = [System.Diagnostics.Stopwatch]::StartNew()
 $result = [ProcessAudioProbe]::Capture($ProcessId, $DurationSeconds)
@@ -607,6 +1080,7 @@ $rmsDb = if ($result.Rms -gt 0) { 20 * [Math]::Log10($result.Rms) } else { [doub
     RmsLinear = $result.Rms
     RmsDbFs = $rmsDb
     HasOutput = ($result.Peak -gt 0.001)
+    StoppedReason = $result.StoppedReason
     OutputPath = $OutputPath
     CaptureWallSeconds = [Math]::Round($wallClock.Elapsed.TotalSeconds, 3)
     CaptureCpuSeconds = [Math]::Round($processCpuAfter - $processCpuBefore, 4)

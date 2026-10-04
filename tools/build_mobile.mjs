@@ -7,8 +7,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const RENDERER_DIR = path.join(ROOT, "renderer");
 const MATERIALS_DIR = path.join(ROOT, "materials");
 const DIST_ROOT = path.join(ROOT, "dist");
-const OUTPUT_DIR = path.join(DIST_ROOT, "asmr3d-v0.1-mobile");
-const ZIP_PATH = path.join(DIST_ROOT, "asmr3d-v0.1-mobile.zip");
+const OUTPUT_DIR = path.join(DIST_ROOT, "asmr3d-v0.2-mobile");
+const ZIP_PATH = path.join(DIST_ROOT, "asmr3d-v0.2-mobile.zip");
 
 const sampleIds = [171335, 169373, 169329, 565204];
 
@@ -36,6 +36,8 @@ for (const item of selectedItems) {
 for (const file of [
   "styles.css",
   "app.js",
+  "live-capture-worklet.js",
+  "background.jpg",
   "icon.svg",
   "icon-192.png",
   "icon-512.png",
@@ -99,6 +101,7 @@ const cacheAssets = [
   "./styles.css",
   "./app.js",
   "./mobile-materials.js",
+  "./background.jpg",
   "./manifest.webmanifest",
   "./icon-192.png",
   "./icon-512.png",
@@ -106,7 +109,7 @@ const cacheAssets = [
 ];
 fs.writeFileSync(
   path.join(OUTPUT_DIR, "service-worker.js"),
-  `const CACHE_NAME = "asmr3d-v0.1-mobile";
+  `const CACHE_NAME = "asmr3d-v0.2-mobile";
 const ASSETS = ${JSON.stringify(cacheAssets, null, 2)};
 
 self.addEventListener("install", (event) => {
@@ -133,7 +136,7 @@ self.addEventListener("fetch", (event) => {
 
 fs.writeFileSync(
   path.join(OUTPUT_DIR, "README.md"),
-  `# asmr3d空间渲染器 v0.1 测试版（手机版）
+  `# asmr3d空间渲染器 v0.2 公测版（手机版）
 
 ## 推荐运行方式
 
@@ -157,7 +160,7 @@ http://电脑局域网IP:4173/mobile/
 
 ## 播放测试流程
 
-1. 选择“步骤 1 素材”或“本地音频文件”。
+1. 选择“软件内置素材库”或“导入本地文件”。
 2. 选择渲染方式：
 
    - 双耳兼容（推荐！）：用于 KU100、假人头录音和普通双耳/立体声成品。

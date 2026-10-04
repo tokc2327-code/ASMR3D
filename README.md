@@ -5,7 +5,7 @@
 当前版本：
 
 ```text
-v0.1 测试版
+v0.2 公测版
 ```
 
 ## 当前开发优先级
@@ -35,6 +35,11 @@ Android 版本暂时暂停开发，原因是第三方 Android 工具链和依赖
 - 播放进度跳转与前后 10 秒操作
 - 完整文件离线 WAV 渲染
 - 5～120 秒实时片段捕获
+- 直播截获（Windows）：按应用进程回环，只抓取所选应用
+- 直播同步录制：分段持续写盘，结束后校验并合并为整段 WAV
+- 视频 / 音频转 WAV：本地抽取音轨，直接写入输出文件夹
+- 空间参数模板：TXT 格式导入 / 导出，导入即套用
+- Windows 便携版自带精简版 PowerShell 7，直播截获开箱可用
 - 16-bit 与 24-bit PCM WAV
 - 网页版、Android APK、Windows 便携版
 - 4 条内置 CC0 示例素材
@@ -48,6 +53,21 @@ materials/     CC0 测试素材与来源清单
 android/       Capacitor Android 工程
 tools/         移动包、APK、EXE 构建脚本
 docs/          技术方案和实现说明
+```
+
+## 界面资源
+
+| 文件 | 说明 |
+|---|---|
+| `renderer/background.jpg` | 主界面背景图，CSS 中叠加暗色蒙版与背景模糊保证文字对比度 |
+| `renderer/icon.ico` | Windows 程序图标，打包时由多尺寸 PNG 合成 |
+| `renderer/icon-*.png`、`apple-touch-icon.png` | 网页版 / 移动版 / 任务栏用的各尺寸图标 |
+
+更换图标只需一条命令（源图会按中心裁剪成方形，再生成全部尺寸）：
+
+```powershell
+pwsh -File .\tools\make_icons.ps1 -Source D:\path\to\avatar.jpg
+node .\tools\build_exe.mjs
 ```
 
 ## 本地网页版
@@ -79,8 +99,8 @@ npm run build:mobile
 输出：
 
 ```text
-dist/asmr3d-v0.1-mobile/
-dist/asmr3d-v0.1-mobile.zip
+dist/asmr3d-v0.2-mobile/
+dist/asmr3d-v0.2-mobile.zip
 ```
 
 ## 构建 Android APK
@@ -111,8 +131,8 @@ npm run exe:release
 输出：
 
 ```text
-dist/asmr3d-v0.1-win-x64/asmr3d空间渲染器.exe
-dist/asmr3d-v0.1-win-x64.zip
+dist/asmr3d-v0.2-win-x64/asmr3d空间渲染器.exe
+dist/asmr3d-v0.2-win-x64.zip
 ```
 
 ## 素材许可

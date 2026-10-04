@@ -154,12 +154,12 @@ function treeLines(directory, prefix = "") {
 
 function importantArtifacts() {
   const files = [
-    "dist/asmr3d-v0.1-test.apk",
-    "dist/asmr3d-v0.1-android.zip",
-    "dist/asmr3d-v0.1-win-x64.zip",
-    "dist/asmr3d-v0.1-mobile.zip",
-    "dist/asmr3d-v0.1-github-source.zip",
-    "dist/asmr3d-v0.1-release-assets.zip",
+    "dist/asmr3d-v0.2-test.apk",
+    "dist/asmr3d-v0.2-android.zip",
+    "dist/asmr3d-v0.2-win-x64.zip",
+    "dist/asmr3d-v0.2-mobile.zip",
+    "dist/asmr3d-v0.2-github-source.zip",
+    "dist/asmr3d-v0.2-release-assets.zip",
   ];
   return files
     .filter((file) => fs.existsSync(path.join(ROOT, file)))
@@ -200,13 +200,13 @@ https://github.com/tokc2327-code/ASMR3D
 Release：
 
 \`\`\`text
-https://github.com/tokc2327-code/ASMR3D/releases/tag/v0.1-test
+https://github.com/tokc2327-code/ASMR3D/releases/tag/v0.2-beta
 \`\`\`
 
 当前版本：
 
 \`\`\`text
-v0.1 测试版
+v0.2 公测版
 \`\`\`
 
 ## 当前平台
@@ -216,14 +216,16 @@ v0.1 测试版
 - Windows：Electron 44 便携版。
 - 当前音频算法：单声道对象 HRTF、参数化 HRTF、双耳兼容、Bypass。
 - 当前在线导出：完整文件离线渲染和 5～120 秒实时片段捕获。
-- 当前未实现：实时抓取系统输出或直播音频。
+- 当前已实现：按应用直播截获（Windows 进程回环）+ 同步分段录制，成品统一输出到 EXE 同级"输出"文件夹。
+- 已移除：系统输出回环采集（会把自身输出抓回去，产生自激回声和啸叫）。
 
-## 实时抓取直播音频的可行性结论
+## 实时抓取直播音频的实现结论
 
-- Windows Electron 可行性高：Electron 官方支持 Windows 系统音频 loopback，可使用 \`loopback\` 或 \`loopbackWithMute\`。
-- 网页版可行性中：可使用 \`getDisplayMedia\`，并要求安全上下文和用户授权。
-- Android 可行性中低：Android 10+ 可使用 MediaProjection 与 AudioPlaybackCapture，但目标应用可以禁止捕获，DRM 内容不可捕获。
-- 系统原声静音问题：推荐使用 \`suppressLocalAudioPlayback: true\` 或 Electron \`loopbackWithMute\`，从捕获链后端抑制本地播放；不要在源媒体元素、源 GainNode 或系统端点之前静音。
+- Windows 最终方案：应用级进程回环（\`ActivateAudioInterfaceAsync\` + \`VAD\\Process_Loopback\`），只抓取所选应用，需要 PowerShell 7。
+- Electron \`desktopCapturer\` 的系统 loopback 实测抓不到 Edge 音频，已放弃。
+- 系统输出回环已删除：它会把 asmr3d 自身输出一起采集，形成自激回路（多层回声/啸叫）。
+- 回声处理：会话音量是线性的，把目标应用压到 1%（−40 dB）后在渲染链补偿等量增益，既能实时监听渲染结果又听不到原声。
+- 录制方式：分流点放在渲染链末端（耳机之前），因此录制中途调整方位角/仰角/距离都会写进成品。
 
 ## 重要构建产物
 

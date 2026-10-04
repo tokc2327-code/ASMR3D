@@ -25,6 +25,9 @@ tools/electron-runtime/
 *.log
 *.pid
 
+# GitHub upload token (never commit)
+tools/.github-token
+
 # Editors and operating systems
 .DS_Store
 Thumbs.db

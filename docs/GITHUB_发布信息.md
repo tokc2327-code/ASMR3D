@@ -23,12 +23,12 @@ audio-processing
 上传：
 
 ```text
-asmr3d-v0.1-test.apk
-asmr3d-v0.1-test.apk.sha256
-asmr3d-v0.1-android.zip
-asmr3d-v0.1-win-x64.zip
-asmr3d-v0.1-win-x64.zip.sha256
-asmr3d-v0.1-mobile.zip
+asmr3d-v0.2-test.apk
+asmr3d-v0.2-test.apk.sha256
+asmr3d-v0.2-android.zip
+asmr3d-v0.2-win-x64.zip
+asmr3d-v0.2-win-x64.zip.sha256
+asmr3d-v0.2-mobile.zip
 APK_使用教程.md
 ANDROID_INSTALL.md
 WINDOWS_INSTALL.md

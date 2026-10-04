@@ -8,7 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const RENDERER_DIR = path.join(ROOT, "renderer");
 const MATERIALS_DIR = path.join(ROOT, "materials");
-const MOBILE_DIR = path.join(ROOT, "dist", "asmr3d-v0.1-mobile");
+const MOBILE_DIR = path.join(ROOT, "dist", "asmr3d-v0.2-mobile");
 const PORT = Number(process.env.PORT || 4173);
 const HOST = process.env.HOST || "0.0.0.0";
 
