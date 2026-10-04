@@ -166,7 +166,7 @@ async function uploadSource() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      message: "Release v0.2 公测版",
+      message: process.env.ASMR3D_COMMIT_MSG || "Release v0.2 公测版",
       tree: tree.sha,
       parents: currentCommit ? [currentCommit.sha] : [],
     }),

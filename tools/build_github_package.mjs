@@ -82,6 +82,7 @@ for (const directory of [
   "renderer",
   "desktop",
   "docs",
+  "wiki",
   "tools",
   "materials",
   "android",
