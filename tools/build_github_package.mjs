@@ -28,6 +28,9 @@ const ignored = [
   "renderer\\server.log",
   "renderer\\server.err",
   "renderer\\server.pid",
+  // 凭据不进源码包
+  "tools\\.github-token",
+  "tools\\.github-token.txt",
 ];
 
 function resetDirectory(target) {

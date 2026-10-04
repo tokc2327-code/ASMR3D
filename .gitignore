@@ -27,6 +27,7 @@ tools/electron-runtime/
 
 # GitHub upload token (never commit)
 tools/.github-token
+tools/.github-token.txt
 
 # Editors and operating systems
 .DS_Store

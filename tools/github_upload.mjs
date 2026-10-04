@@ -22,9 +22,11 @@ const REPO = "ASMR3D";
 // so it never needs to be pasted anywhere permanent.
 function readToken() {
   if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN.trim();
-  const tokenFile = path.join(__dirname, ".github-token");
-  if (fs.existsSync(tokenFile)) {
-    return fs.readFileSync(tokenFile, "utf8").trim();
+  for (const name of [".github-token", ".github-token.txt"]) {
+    const tokenFile = path.join(__dirname, name);
+    if (!fs.existsSync(tokenFile)) continue;
+    const value = fs.readFileSync(tokenFile, "utf8").trim();
+    if (value) return value;
   }
   return "";
 }
@@ -33,7 +35,7 @@ const TOKEN = readToken();
 
 if (!TOKEN) {
   throw new Error(
-    "缺少 GitHub 令牌：请设置环境变量 GITHUB_TOKEN，或把令牌写入 tools/.github-token（该文件不会被提交）。",
+    "缺少 GitHub 令牌：请设置环境变量 GITHUB_TOKEN，或把令牌写入 tools/.github-token（或 tools/.github-token.txt）。",
   );
 }
 
@@ -164,7 +166,7 @@ async function uploadSource() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      message: "Initial open source release v0.2",
+      message: "Release v0.2 公测版",
       tree: tree.sha,
       parents: currentCommit ? [currentCommit.sha] : [],
     }),
@@ -228,7 +230,25 @@ async function getOrCreateRelease() {
       target_commitish: "main",
       name: "asmr3d空间渲染器 v0.2 公测版",
       body:
-        "首个公开测试版本。包含 Android APK、Windows 便携版和网页版资源。代码使用 MIT License，测试音频使用 CC0 素材。",
+        [
+          "## v0.2 公测版",
+          "",
+          "### 新增",
+          "- 直播截获：按应用进程回环实时取流，只抓取所选应用",
+          "- 同步录制：分段持续写盘，直播结束后校验并合并为整段 24-bit WAV",
+          "- 视频转音频：本地抽取音轨转 WAV（不依赖 ffmpeg，63 分钟视频约 15 秒）",
+          "- 空间参数模板：TXT 导入 / 导出，导入即套用",
+          "- 统一输出文件夹：所有成品写入 EXE 同级的 `输出` 目录",
+          "",
+          "### 变更",
+          "- Windows 便携版**内置精简版 PowerShell 7.6.6**，直播截获开箱可用，无需另装",
+          "- 移除系统输出回环采集（会把自身输出抓回去产生自激啸叫）",
+          "- 界面改为粉色主题，可直接导入本地视频/音频",
+          "",
+          "### 说明",
+          "- 本版未重新构建 Android APK（移动端请使用网页版 / PWA 包）",
+          "- 代码 MIT，测试音频 CC0",
+        ].join("\n"),
       draft: false,
       prerelease: true,
     }),
