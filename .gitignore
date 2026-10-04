@@ -19,6 +19,7 @@ android/capacitor-cordova-android-plugins/
 
 # Local Android build toolchain
 tools/android-build/
+tools/electron-runtime/
 
 # Runtime files
 *.log

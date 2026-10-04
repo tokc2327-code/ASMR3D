@@ -16,6 +16,7 @@ const RELEASE_ZIP = path.join(DIST, "asmr3d-v0.1-release-assets.zip");
 const ignored = [
   "node_modules",
   "tools\\android-build",
+  "tools\\electron-runtime",
   "android\\.gradle",
   "android\\.kotlin",
   "android\\build",

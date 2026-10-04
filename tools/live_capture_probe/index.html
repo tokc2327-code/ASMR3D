@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>asmr3d Live Capture Probe</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <p>ASMR3D / LIVE INPUT PROBE</p>
+        <h1>系统直播音频捕获验证</h1>
+      </div>
+      <span id="state">待机</span>
+    </header>
+
+    <main>
+      <section class="steps">
+        <h2>测试流程</h2>
+        <ol>
+          <li>在 Edge 中打开 Twitch，并确保直播正常播放、未静音。</li>
+          <li>将系统默认输出设在 Twitch 使用的设备上。</li>
+          <li>点击“启动捕获”。Electron 会使用 loopbackWithMute。</li>
+          <li>观察输入电平是否持续大于静音阈值。</li>
+          <li>选择用于监听处理结果的耳机输出设备。</li>
+          <li>运行“反馈检测”，确认处理后输出没有被自身再次捕获。</li>
+        </ol>
+      </section>
+
+      <section class="controls">
+        <button id="startButton" type="button">启动捕获</button>
+        <button id="testToneButton" type="button">播放 8 秒测试音</button>
+        <button id="stopButton" type="button" disabled>停止</button>
+        <button id="feedbackButton" type="button" disabled>反馈检测</button>
+      </section>
+
+      <section class="meters">
+        <div>
+          <span>输入峰值</span>
+          <strong id="inputPeak">-∞ dBFS</strong>
+        </div>
+        <div>
+          <span>输入 RMS</span>
+          <strong id="inputRms">-∞ dBFS</strong>
+        </div>
+        <div>
+          <span>输出 RMS</span>
+          <strong id="outputRms">-∞ dBFS</strong>
+        </div>
+        <div>
+          <span>有效帧</span>
+          <strong id="frames">0</strong>
+        </div>
+      </section>
+
+      <section class="device-panel">
+        <label>
+          <span>监听输出设备</span>
+          <select id="outputDevice"></select>
+        </label>
+        <label>
+          <span>监听音量</span>
+          <input id="monitorGain" type="range" min="0" max="60" value="0" />
+          <output id="monitorGainValue">0%</output>
+        </label>
+        <button id="applyOutput" type="button" disabled>应用输出设备</button>
+      </section>
+
+      <section class="diagnostics">
+        <h2>诊断信息</h2>
+        <pre id="diagnostics">尚未启动捕获。</pre>
+      </section>
+
+      <section class="result">
+        <h2>测试结果</h2>
+        <div id="resultStatus" class="pending">等待启动</div>
+      </section>
+    </main>
+
+    <script src="./renderer.js"></script>
+  </body>
+</html>
