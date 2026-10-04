@@ -583,7 +583,11 @@ if ($ProcessId -le 0) {
 $target = Get-Process -Id $ProcessId -ErrorAction Stop
 $ProcessName = $target.ProcessName
 Write-Host "Target process: $($target.ProcessName) ($ProcessId)"
+$processCpuBefore = [System.Diagnostics.Process]::GetCurrentProcess().TotalProcessorTime.TotalSeconds
+$wallClock = [System.Diagnostics.Stopwatch]::StartNew()
 $result = [ProcessAudioProbe]::Capture($ProcessId, $DurationSeconds)
+$wallClock.Stop()
+$processCpuAfter = [System.Diagnostics.Process]::GetCurrentProcess().TotalProcessorTime.TotalSeconds
 if ($OutputPath) {
     [ProcessAudioProbe]::WriteFloatWav($OutputPath, $result)
 }
@@ -604,4 +608,11 @@ $rmsDb = if ($result.Rms -gt 0) { 20 * [Math]::Log10($result.Rms) } else { [doub
     RmsDbFs = $rmsDb
     HasOutput = ($result.Peak -gt 0.001)
     OutputPath = $OutputPath
+    CaptureWallSeconds = [Math]::Round($wallClock.Elapsed.TotalSeconds, 3)
+    CaptureCpuSeconds = [Math]::Round($processCpuAfter - $processCpuBefore, 4)
+    CaptureCpuPercentOfOneCore = [Math]::Round(
+        100 * ($processCpuAfter - $processCpuBefore) /
+            [Math]::Max($wallClock.Elapsed.TotalSeconds, 0.001),
+        3
+    )
 } | Format-List

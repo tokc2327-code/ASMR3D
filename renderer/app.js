@@ -60,6 +60,7 @@ const state = {
   monoInput: null,
   master: null,
   limiter: null,
+  captureTap: null,
   hrtfPath: null,
   parametricPath: null,
   compatibilityPath: null,
@@ -74,6 +75,7 @@ const state = {
   isSeeking: false,
   progressFrame: null,
   exportCapture: null,
+  modeSwitchId: 0,
   objectUrl: null,
 };
 
@@ -425,6 +427,13 @@ async function finishExport(cancelled) {
     state.audio.pause();
     state.audio.loop = capture.previousLoop;
   }
+  if (state.captureTap) {
+    state.limiter.disconnect(state.captureTap);
+    state.captureTap.disconnect();
+    state.captureTap.onaudioprocess = null;
+    state.limiter.connect(state.audioContext.destination);
+    state.captureTap = null;
+  }
   setExportControlsDisabled(false);
 
   if (cancelled) {
@@ -490,6 +499,13 @@ async function startSegmentExport() {
   state.audio.loop = false;
   await state.audioContext.resume();
 
+  const captureTap = state.audioContext.createScriptProcessor(4096, 2, 2);
+  captureTap.onaudioprocess = processExportCapture;
+  state.limiter.disconnect();
+  state.limiter.connect(captureTap);
+  captureTap.connect(state.audioContext.destination);
+  state.captureTap = captureTap;
+
   state.exportCapture = {
     active: false,
     left: [],
@@ -512,6 +528,13 @@ async function startSegmentExport() {
     state.exportCapture.active = true;
     elements.exportStatus.textContent = `导出中 0.0 / ${duration.toFixed(1)} 秒`;
   } catch (error) {
+    if (state.captureTap) {
+      state.limiter.disconnect(state.captureTap);
+      state.captureTap.disconnect();
+      state.captureTap.onaudioprocess = null;
+      state.limiter.connect(state.audioContext.destination);
+      state.captureTap = null;
+    }
     state.exportCapture = null;
     setExportControlsDisabled(false);
     throw error;
@@ -888,35 +911,27 @@ function ensureAudioGraph() {
 
   const master = audioContext.createGain();
   const limiter = audioContext.createDynamicsCompressor();
-  const captureTap = audioContext.createScriptProcessor(4096, 2, 2);
-  captureTap.onaudioprocess = processExportCapture;
   limiter.threshold.value = -2;
   limiter.knee.value = 2;
   limiter.ratio.value = 16;
   limiter.attack.value = 0.002;
   limiter.release.value = 0.12;
 
-  mediaSource.connect(monoInput);
-  monoInput.connect(hrtfPath);
   hrtfPath.connect(panner);
   panner.connect(hrtfOutput);
   hrtfOutput.connect(master);
 
-  monoInput.connect(parametricPath);
   parametric.output.connect(parametricOutput);
   parametricOutput.connect(master);
 
-  mediaSource.connect(compatibilityPath);
   compatibility.output.connect(compatibilityOutput);
   compatibilityOutput.connect(master);
 
-  mediaSource.connect(bypassPath);
   bypassPath.connect(bypassOutput);
   bypassOutput.connect(master);
 
   master.connect(limiter);
-  limiter.connect(captureTap);
-  captureTap.connect(audioContext.destination);
+  limiter.connect(audioContext.destination);
 
   Object.assign(state, {
     audio,
@@ -935,6 +950,7 @@ function ensureAudioGraph() {
     ready: true,
   });
 
+  connectModeInput(state.mode);
   setAudioParam(hrtfPath.gain, 0);
   setAudioParam(parametricPath.gain, 0);
   setAudioParam(compatibilityPath.gain, 1);
@@ -959,6 +975,63 @@ function updateModeCrossfade() {
     binaural: "保留原始左右声道，只做整体声场横向移动、高度音色、距离与混响处理；不是真实声源旋转。",
     bypass: "保留原始左右声道并跳过空间处理，仅保留音量与限幅，作为 A/B 对照。",
   }[state.mode];
+}
+
+function disconnectModeInputs() {
+  for (const [source, target] of [
+    [state.mediaSource, state.monoInput],
+    [state.mediaSource, state.compatibilityPath],
+    [state.mediaSource, state.bypassPath],
+    [state.monoInput, state.hrtfPath],
+    [state.monoInput, state.parametricPath],
+  ]) {
+    if (!source || !target) continue;
+    try {
+      source.disconnect(target);
+    } catch {
+      // The requested connection was not active.
+    }
+  }
+}
+
+function connectModeInput(mode) {
+  if (mode === "hrtf") {
+    state.mediaSource.connect(state.monoInput);
+    state.monoInput.connect(state.hrtfPath);
+  } else if (mode === "parametric") {
+    state.mediaSource.connect(state.monoInput);
+    state.monoInput.connect(state.parametricPath);
+  } else if (mode === "binaural") {
+    state.mediaSource.connect(state.compatibilityPath);
+  } else {
+    state.mediaSource.connect(state.bypassPath);
+  }
+}
+
+function changeMode(mode) {
+  if (mode === state.mode && state.ready) return;
+  const switchId = state.modeSwitchId + 1;
+  state.modeSwitchId = switchId;
+
+  if (!state.ready) {
+    state.mode = mode;
+    return;
+  }
+
+  const now = state.audioContext.currentTime;
+  state.master.gain.setTargetAtTime(0, now, 0.008);
+  window.setTimeout(() => {
+    if (switchId !== state.modeSwitchId) return;
+    disconnectModeInputs();
+    state.mode = mode;
+    connectModeInput(mode);
+    state.master.gain.setTargetAtTime(
+      Number(elements.volume.value) / 100,
+      state.audioContext.currentTime,
+      0.01,
+    );
+    updateAudioGraph();
+  }, 24);
 }
 
 function setNodeParam(param, value, timeConstant, immediate = false, context = null) {
@@ -1373,11 +1446,10 @@ function bindControls() {
   elements.modeControl.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-mode]");
     if (!button) return;
-    state.mode = button.dataset.mode;
     for (const candidate of elements.modeControl.querySelectorAll("button")) {
       candidate.classList.toggle("active", candidate === button);
     }
-    if (state.ready) updateModeCrossfade();
+    changeMode(button.dataset.mode);
   });
 
 }
