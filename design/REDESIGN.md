@@ -1,6 +1,8 @@
 # asmr3d空间渲染器 · Windows EXE UI 重设计 v2.1
 
 > 更新日期：2026-10-07（v2.1 修订，吸收 ErgouTreeCrypt 紧凑平坦风格；修订摘要见 §0，修订交接证据见 `design/UI_REVISION_NOTES.md`）
+> v2.2 调整：空间参数、参数模板与参数读数迁移到中栏，位于播放进度和
+> 视频转音频之间；本地播放和直播截获共用该参数工作区。
 > 范围：仅渲染层（`renderer/index.html`、`renderer/styles.css`、新增 `renderer/enhance.js`）。
 > 音频算法、Web Audio 链路、IPC 协议（`desktop/preload.cjs`）、直播捕获逻辑（`desktop/*.cjs`）零改动；
 > `renderer/app.js` 逐字节保持原样（原型目录内为主仓库验证用副本，sha256 已核对一致）。

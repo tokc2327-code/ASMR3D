@@ -116,96 +116,6 @@
             </div>
           </section>
 
-          <section class="sect">
-            <header class="sect-head">
-              <h2 class="sect-title"><svg class="icon" aria-hidden="true"><use href="#i-sliders" /></svg>空间参数</h2>
-              <button id="resetButton" class="link-btn" type="button" title="复位全部空间参数">
-                <svg class="icon" aria-hidden="true"><use href="#i-reset" /></svg>复位
-              </button>
-            </header>
-            <div class="sect-body">
-              <div class="param">
-                <div class="param-row">
-                  <span class="param-name">方位角</span>
-                  <span class="param-ctrl">
-                    <output id="azimuthOutput" title="单击输入精确数值">0°</output>
-                    <button class="param-reset" type="button" data-param-reset="azimuth" aria-label="复位方位角" title="复位方位角">
-                      <svg class="icon" aria-hidden="true"><use href="#i-reset" /></svg>
-                    </button>
-                  </span>
-                </div>
-                <input id="azimuth" type="range" min="-90" max="90" step="0.1" value="0" />
-                <div class="param-scale" aria-hidden="true"><span>−90° 左</span><span>0° 正前</span><span>+90° 右</span></div>
-              </div>
-
-              <div class="param">
-                <div class="param-row">
-                  <span class="param-name">仰角</span>
-                  <span class="param-ctrl">
-                    <output id="elevationOutput" title="单击输入精确数值">0°</output>
-                    <button class="param-reset" type="button" data-param-reset="elevation" aria-label="复位仰角" title="复位仰角">
-                      <svg class="icon" aria-hidden="true"><use href="#i-reset" /></svg>
-                    </button>
-                  </span>
-                </div>
-                <input id="elevation" type="range" min="-30" max="30" step="0.1" value="0" />
-                <div class="param-scale" aria-hidden="true"><span>−30° 下</span><span>0° 水平</span><span>+30° 上</span></div>
-              </div>
-
-              <div class="param">
-                <div class="param-row">
-                  <span class="param-name">距离</span>
-                  <span class="param-ctrl">
-                    <output id="distanceOutput" title="单击输入精确数值">0.40 m</output>
-                    <button class="param-reset" type="button" data-param-reset="distance" aria-label="复位距离" title="复位距离">
-                      <svg class="icon" aria-hidden="true"><use href="#i-reset" /></svg>
-                    </button>
-                  </span>
-                </div>
-                <input id="distance" type="range" min="0" max="1000" step="1" value="203" />
-                <div class="param-scale" aria-hidden="true"><span>0.2 m 贴近</span><span>对数映射</span><span>10 m 远</span></div>
-              </div>
-
-              <div class="param">
-                <div class="param-row">
-                  <span class="param-name">输出音量</span>
-                  <span class="param-ctrl">
-                    <output id="volumeOutput" title="单击输入精确数值">80%</output>
-                    <button class="param-reset" type="button" data-param-reset="volume" aria-label="复位输出音量" title="复位输出音量">
-                      <svg class="icon" aria-hidden="true"><use href="#i-reset" /></svg>
-                    </button>
-                  </span>
-                </div>
-                <input id="volume" type="range" min="0" max="100" step="1" value="80" />
-                <div class="param-scale" aria-hidden="true"><span>0%</span><span></span><span>100%</span></div>
-              </div>
-            </div>
-          </section>
-
-          <section class="sect sect-fold" id="templateSection">
-            <header class="sect-head">
-              <h2 class="sect-title"><svg class="icon" aria-hidden="true"><use href="#i-tag" /></svg>参数模板</h2>
-              <span class="badge" id="templateBadge">未载入</span>
-              <button class="fold-btn" type="button" aria-expanded="true" aria-label="折叠参数模板">
-                <svg class="icon" aria-hidden="true"><use href="#i-chevron-down" /></svg>
-              </button>
-            </header>
-            <div class="sect-body">
-              <div class="btn-row">
-                <button id="templateImportButton" class="btn" type="button">
-                  <svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>导入模板
-                </button>
-                <button id="templateExportButton" class="btn" type="button">
-                  <svg class="icon" aria-hidden="true"><use href="#i-upload" /></svg>导出模板
-                </button>
-              </div>
-              <input id="templateFileInput" type="file" accept=".txt,text/plain" hidden />
-              <p class="note" id="templateStatus">
-                导入 TXT 会立即套用方位角 / 仰角 / 距离 / 音量 / 渲染方式。
-              </p>
-            </div>
-          </section>
-
           <section class="sect sect-fold" id="exportSection">
             <header class="sect-head">
               <h2 class="sect-title"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>导出成品音频</h2>
@@ -319,6 +229,116 @@
             </div>
           </section>
 
+          <section class="sect" id="parameterSection">
+            <header class="sect-head">
+              <h2 class="sect-title"><svg class="icon" aria-hidden="true"><use href="#i-sliders" /></svg>空间参数</h2>
+              <button id="resetButton" class="link-btn" type="button" title="复位全部空间参数">
+                <svg class="icon" aria-hidden="true"><use href="#i-reset" /></svg>复位
+              </button>
+            </header>
+            <div class="sect-body">
+              <div class="param">
+                <div class="param-row">
+                  <span class="param-name">方位角</span>
+                  <span class="param-ctrl">
+                    <output id="azimuthOutput" title="单击输入精确数值">0°</output>
+                    <button class="param-reset" type="button" data-param-reset="azimuth" aria-label="复位方位角" title="复位方位角">
+                      <svg class="icon" aria-hidden="true"><use href="#i-reset" /></svg>
+                    </button>
+                  </span>
+                </div>
+                <input id="azimuth" type="range" min="-90" max="90" step="0.1" value="0" />
+                <div class="param-scale" aria-hidden="true"><span>−90° 左</span><span>0° 正前</span><span>+90° 右</span></div>
+              </div>
+
+              <div class="param">
+                <div class="param-row">
+                  <span class="param-name">仰角</span>
+                  <span class="param-ctrl">
+                    <output id="elevationOutput" title="单击输入精确数值">0°</output>
+                    <button class="param-reset" type="button" data-param-reset="elevation" aria-label="复位仰角" title="复位仰角">
+                      <svg class="icon" aria-hidden="true"><use href="#i-reset" /></svg>
+                    </button>
+                  </span>
+                </div>
+                <input id="elevation" type="range" min="-30" max="30" step="0.1" value="0" />
+                <div class="param-scale" aria-hidden="true"><span>−30° 下</span><span>0° 水平</span><span>+30° 上</span></div>
+              </div>
+
+              <div class="param">
+                <div class="param-row">
+                  <span class="param-name">距离</span>
+                  <span class="param-ctrl">
+                    <output id="distanceOutput" title="单击输入精确数值">0.40 m</output>
+                    <button class="param-reset" type="button" data-param-reset="distance" aria-label="复位距离" title="复位距离">
+                      <svg class="icon" aria-hidden="true"><use href="#i-reset" /></svg>
+                    </button>
+                  </span>
+                </div>
+                <input id="distance" type="range" min="0" max="1000" step="1" value="203" />
+                <div class="param-scale" aria-hidden="true"><span>0.2 m 贴近</span><span>对数映射</span><span>10 m 远</span></div>
+              </div>
+
+              <div class="param">
+                <div class="param-row">
+                  <span class="param-name">输出音量</span>
+                  <span class="param-ctrl">
+                    <output id="volumeOutput" title="单击输入精确数值">80%</output>
+                    <button class="param-reset" type="button" data-param-reset="volume" aria-label="复位输出音量" title="复位输出音量">
+                      <svg class="icon" aria-hidden="true"><use href="#i-reset" /></svg>
+                    </button>
+                  </span>
+                </div>
+                <input id="volume" type="range" min="0" max="100" step="1" value="80" />
+                <div class="param-scale" aria-hidden="true"><span>0%</span><span></span><span>100%</span></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="sect sect-fold" id="templateSection">
+            <header class="sect-head">
+              <h2 class="sect-title"><svg class="icon" aria-hidden="true"><use href="#i-tag" /></svg>参数模板</h2>
+              <span class="badge" id="templateBadge">未载入</span>
+              <button class="fold-btn" type="button" aria-expanded="true" aria-label="折叠参数模板">
+                <svg class="icon" aria-hidden="true"><use href="#i-chevron-down" /></svg>
+              </button>
+            </header>
+            <div class="sect-body">
+              <div class="btn-row">
+                <button id="templateImportButton" class="btn" type="button">
+                  <svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>导入模板
+                </button>
+                <button id="templateExportButton" class="btn" type="button">
+                  <svg class="icon" aria-hidden="true"><use href="#i-upload" /></svg>导出模板
+                </button>
+              </div>
+              <input id="templateFileInput" type="file" accept=".txt,text/plain" hidden />
+              <p class="note" id="templateStatus">
+                导入 TXT 会立即套用方位角 / 仰角 / 距离 / 音量 / 渲染方式，并同步作用于本地播放和直播截获。
+              </p>
+            </div>
+          </section>
+
+          <section class="sect" id="telemetrySection">
+            <header class="sect-head">
+              <h2 class="sect-title"><svg class="icon" aria-hidden="true"><use href="#i-activity" /></svg>空间参数读数</h2>
+              <span class="badge badge-static">随参数实时更新</span>
+            </header>
+            <div class="sect-body">
+              <div class="metrics-grid">
+                <div class="metric"><span>距离增益</span><strong id="metricDistanceGain">−6.0 dB</strong></div>
+                <div class="metric"><span>双耳声级差</span><strong id="metricIld">0.0 dB</strong></div>
+                <div class="metric"><span>双耳时差</span><strong id="metricItd">0.00 ms</strong></div>
+                <div class="metric"><span>空气吸收</span><strong id="metricAir">20.0 kHz</strong></div>
+                <div class="metric"><span>近场提升</span><strong id="metricNear">0.0 dB</strong></div>
+                <div class="metric"><span>基础输出延时</span><strong id="metricLatency">待测</strong></div>
+              </div>
+              <div class="signal-chain" id="signalChain" data-mode="binaural">
+                <span>Stereo L/R</span><i></i><span>Field pan</span><i></i><span>Elevation EQ</span><i></i><span>Distance</span><i></i><span>Limiter</span>
+              </div>
+            </div>
+          </section>
+
           <section class="sect sect-fold" id="convertSection">
             <header class="sect-head">
               <h2 class="sect-title"><svg class="icon" aria-hidden="true"><use href="#i-video" /></svg>视频转音频</h2>
@@ -353,25 +373,6 @@
             </div>
           </section>
 
-          <section class="sect" id="telemetrySection">
-            <header class="sect-head">
-              <h2 class="sect-title"><svg class="icon" aria-hidden="true"><use href="#i-activity" /></svg>空间参数读数</h2>
-              <span class="badge badge-static">随参数实时更新</span>
-            </header>
-            <div class="sect-body">
-              <div class="metrics-grid">
-                <div class="metric"><span>距离增益</span><strong id="metricDistanceGain">−6.0 dB</strong></div>
-                <div class="metric"><span>双耳声级差</span><strong id="metricIld">0.0 dB</strong></div>
-                <div class="metric"><span>双耳时差</span><strong id="metricItd">0.00 ms</strong></div>
-                <div class="metric"><span>空气吸收</span><strong id="metricAir">20.0 kHz</strong></div>
-                <div class="metric"><span>近场提升</span><strong id="metricNear">0.0 dB</strong></div>
-                <div class="metric"><span>基础输出延时</span><strong id="metricLatency">待测</strong></div>
-              </div>
-              <div class="signal-chain" id="signalChain" data-mode="binaural">
-                <span>Stereo L/R</span><i></i><span>Field pan</span><i></i><span>Elevation EQ</span><i></i><span>Distance</span><i></i><span>Limiter</span>
-              </div>
-            </div>
-          </section>
         </div>
       </section>
 

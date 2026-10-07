@@ -365,6 +365,20 @@ input[type="file"]:disabled {
   display: grid;
 }
 
+/* 中栏参数工作区：本地播放和直播截获共用，宽屏双列、窄屏单列 */
+#parameterSection .sect-body {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 24px;
+}
+
+#parameterSection .param {
+  margin-bottom: 6px;
+}
+
+#parameterSection .param:nth-last-child(-n + 2) {
+  margin-bottom: 0;
+}
+
 /* ---------- 5. 徽章 ---------- */
 .badge {
   padding: 2px 9px;
@@ -1525,6 +1539,17 @@ body[data-dragging] #convertSection {
 
   .stage-panel {
     min-height: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  #parameterSection .sect-body {
+    grid-template-columns: 1fr;
+  }
+
+  #parameterSection .param,
+  #parameterSection .param:nth-last-child(-n + 2) {
+    margin-bottom: 10px;
   }
 }
 
