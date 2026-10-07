@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>asmr3d空间渲染器 v0.2公测版</title>
     <link rel="icon" href="data:," />
+    <script src="./settings.js"></script>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body data-transport="idle">
@@ -27,6 +28,10 @@
       <symbol id="i-activity" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
       <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></symbol>
       <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.86 1.86-.06-.06A1.7 1.7 0 0 0 16 18.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V20h-2.62v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.88.34l-.06.06-1.86-1.86.06-.06A1.7 1.7 0 0 0 5.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H4v-2.62h.1A1.7 1.7 0 0 0 5.6 9.9a1.7 1.7 0 0 0-.34-1.88l-.06-.06L7.06 6.1l.06.06A1.7 1.7 0 0 0 9 6.4a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V4h2.62v.1A1.7 1.7 0 0 0 14.1 5.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 1.86 1.86-.06.06A1.7 1.7 0 0 0 18.4 9a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4h.1v2.62h-.1A1.7 1.7 0 0 0 19.4 15Z"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"/></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></symbol>
+      <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
       <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
       <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
       <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
@@ -43,13 +48,13 @@
 
     <!-- 工具条（原生 Windows 标题栏之下，不模拟系统标题栏） -->
     <header class="appbar">
-      <img class="appbar-logo" src="./icon.svg" alt="" width="20" height="20" />
-      <span class="appbar-title">asmr3d空间渲染器</span>
-      <span class="version-chip">v0.2 公测版</span>
       <div class="appbar-right">
-        <div class="engine-state" id="engineState">待机</div>
-        <button id="outDirButton" class="btn btn-ghost" type="button" title="打开输出文件夹">
-          <svg class="icon" aria-hidden="true"><use href="#i-folder-open" /></svg>输出文件夹
+        <div id="engineState" hidden></div>
+        <button id="themeToggle" class="icon-btn appbar-icon-btn" type="button" aria-label="切换主题" title="切换主题">
+          <svg class="icon" aria-hidden="true"><use href="#i-monitor" /></svg>
+        </button>
+        <button id="settingsButton" class="icon-btn appbar-icon-btn" type="button" aria-label="设置" title="设置">
+          <svg class="icon" aria-hidden="true"><use href="#i-settings" /></svg>
         </button>
       </div>
     </header>
@@ -110,7 +115,7 @@
                   <span class="mode-dot" aria-hidden="true"></span>Bypass
                 </button>
               </div>
-              <p class="note note-oneline" id="modeNote" aria-live="polite" title="保留原始左右声道，适合 KU100、假人头和普通立体声成品。">
+              <p class="note note-oneline" id="modeNote" aria-live="polite" hidden>
                 保留原始左右声道，适合 KU100、假人头和普通立体声成品。
               </p>
             </div>
@@ -163,9 +168,7 @@
                 <button id="cancelExportButton" class="btn btn-danger-ghost" type="button" disabled>取消</button>
               </div>
               <progress id="exportProgress" max="1" value="0"></progress>
-              <p class="note" id="exportStatus">
-                实时捕获当前渲染结果，导出耗时与片段长度相同。
-              </p>
+              <p class="note" id="exportStatus"></p>
               <p class="note note-tiny" id="exportDirText">成品保存位置：程序目录下的“输出”文件夹</p>
             </div>
           </section>
@@ -313,9 +316,7 @@
                 </button>
               </div>
               <input id="templateFileInput" type="file" accept=".txt,text/plain" hidden />
-              <p class="note" id="templateStatus">
-                导入 TXT 会立即套用方位角 / 仰角 / 距离 / 音量 / 渲染方式，并同步作用于本地播放和直播截获。
-              </p>
+              <p class="note" id="templateStatus"></p>
             </div>
           </section>
 
@@ -367,9 +368,7 @@
                 </button>
               </div>
               <progress id="convertProgress" max="1" value="0"></progress>
-              <p class="note" id="convertStatus">
-                选择视频或音频文件，抽取音轨写入输出文件夹。
-              </p>
+              <p class="note" id="convertStatus"></p>
             </div>
           </section>
 
@@ -502,6 +501,107 @@
         <li data-method="live-recording"><strong>分段持续录制</strong><span>边渲染边分段写盘，直播结束后校验并合并为整段 WAV。</span></li>
       </ol>
     </section>
+
+    <section class="settings-panel" id="settingsPanel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" hidden>
+      <header class="settings-head">
+        <h2 id="settingsTitle"><svg class="icon" aria-hidden="true"><use href="#i-settings" /></svg>设置</h2>
+        <button class="icon-btn" id="settingsCloseBtn" type="button" aria-label="关闭设置">
+          <svg class="icon" aria-hidden="true"><use href="#i-x" /></svg>
+        </button>
+      </header>
+      <nav class="settings-tabs" aria-label="设置分类">
+        <button type="button" data-settings-tab="appearance" class="active">外观</button>
+        <button type="button" data-settings-tab="defaults">默认参数</button>
+        <button type="button" data-settings-tab="about">关于</button>
+      </nav>
+      <div class="settings-content">
+        <div class="settings-pane active" data-settings-pane="appearance">
+          <label class="field">
+            <span class="field-label">主题</span>
+            <select id="settingsTheme">
+              <option value="system">跟随系统</option>
+              <option value="light">浅色</option>
+              <option value="dark">深色</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">背景图显隐 <output id="settingsBackgroundVisibilityValue">40%</output></span>
+            <input id="settingsBackgroundVisibility" type="range" min="0" max="60" step="1" value="40" />
+          </label>
+          <label class="field">
+            <span class="field-label">背景模糊 <output id="settingsBackgroundBlurValue">3px</output></span>
+            <input id="settingsBackgroundBlur" type="range" min="0" max="12" step="1" value="3" />
+          </label>
+          <label class="field">
+            <span class="field-label">面板透明度 <output id="settingsPanelOpacityValue">92%</output></span>
+            <input id="settingsPanelOpacity" type="range" min="70" max="100" step="1" value="92" />
+          </label>
+        </div>
+        <div class="settings-pane" data-settings-pane="defaults">
+          <div class="field-2col">
+            <label class="field">
+              <span class="field-label">默认渲染方式</span>
+              <select id="settingsDefaultMode">
+                <option value="binaural">双耳兼容</option>
+                <option value="hrtf">浏览器 HRTF</option>
+                <option value="parametric">参数化 HRTF</option>
+                <option value="bypass">Bypass</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label">默认音量</span>
+              <input id="settingsDefaultVolume" type="number" min="0" max="100" step="1" />
+            </label>
+          </div>
+          <div class="field-2col">
+            <label class="field"><span class="field-label">默认方位角</span><input id="settingsDefaultAzimuth" type="number" min="-90" max="90" step="0.1" /></label>
+            <label class="field"><span class="field-label">默认仰角</span><input id="settingsDefaultElevation" type="number" min="-30" max="30" step="0.1" /></label>
+          </div>
+          <div class="field-2col">
+            <label class="field"><span class="field-label">默认距离（m）</span><input id="settingsDefaultDistance" type="number" min="0.2" max="10" step="0.01" /></label>
+            <label class="field"><span class="field-label">默认导出位深</span>
+              <select id="settingsDefaultExportBitDepth"><option value="16">16-bit</option><option value="24">24-bit</option></select>
+            </label>
+          </div>
+          <div class="field-2col">
+            <label class="field"><span class="field-label">默认转换位深</span>
+              <select id="settingsDefaultConvertBitDepth"><option value="16">16-bit</option><option value="24">24-bit</option></select>
+            </label>
+            <label class="field"><span class="field-label">默认录制分段</span>
+              <select id="settingsDefaultRecordSegment"><option value="300">5 分钟</option><option value="600">10 分钟</option><option value="1800">30 分钟</option></select>
+            </label>
+          </div>
+          <div class="field-2col">
+            <label class="field"><span class="field-label">默认录制位深</span>
+              <select id="settingsDefaultRecordBitDepth"><option value="16">16-bit</option><option value="24">24-bit</option></select>
+            </label>
+            <label class="field"><span class="field-label">默认静音停止</span>
+              <select id="settingsDefaultSilenceTimeout"><option value="0">关闭</option><option value="30">30 秒</option><option value="60">60 秒</option><option value="120">120 秒</option></select>
+            </label>
+          </div>
+          <button id="settingsApplyDefaults" class="btn btn-primary btn-wide" type="button">立即应用默认参数</button>
+          <p class="settings-hint">默认参数用于“复位”按钮和新会话的初始值。</p>
+        </div>
+        <div class="settings-pane" data-settings-pane="about">
+          <div class="about-brand">
+            <img src="./icon.svg" alt="" width="42" height="42" />
+            <div><strong>asmr3d空间渲染器</strong><span>v0.2 公测版</span></div>
+          </div>
+          <dl class="about-list">
+            <div><dt>开发者</dt><dd>紫色系汽水</dd></div>
+            <div><dt>邮箱</dt><dd><a href="mailto:tokc2327@gmail.com">tokc2327@gmail.com</a></dd></div>
+            <div><dt>GitHub</dt><dd><a href="https://github.com/tokc2327-code/ASMR3D" target="_blank" rel="noreferrer">tokc2327-code/ASMR3D</a></dd></div>
+            <div><dt>许可证</dt><dd>MIT</dd></div>
+            <div><dt>技术栈</dt><dd>Electron · Web Audio API</dd></div>
+          </dl>
+        </div>
+      </div>
+      <footer class="settings-foot">
+        <button id="settingsReset" class="btn" type="button">恢复默认设置</button>
+      </footer>
+    </section>
+
+    <div class="info-popover" id="infoPopover" hidden></div>
 
     <footer class="statusbar">
       <span class="status-msg">

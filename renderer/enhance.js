@@ -39,6 +39,13 @@
     fileInput: $("fileInput"),
     convertFileInput: $("convertFileInput"),
     outDirButton: $("outDirButton"),
+    themeToggle: $("themeToggle"),
+    settingsButton: $("settingsButton"),
+    settingsPanel: $("settingsPanel"),
+    settingsCloseBtn: $("settingsCloseBtn"),
+    settingsReset: $("settingsReset"),
+    settingsApplyDefaults: $("settingsApplyDefaults"),
+    infoPopover: $("infoPopover"),
     methodsToggle: $("methodsToggle"),
     methodDrawer: $("methodDrawer"),
     methodCloseBtn: $("methodCloseBtn"),
@@ -46,6 +53,7 @@
   };
 
   const desktop = window.asmr3dDesktop || null;
+  const settings = window.asmr3dSettings || null;
 
   /* ---------- 1. 滑杆填充同步（含程序化赋值，如复位/模板导入/播放进度） ---------- */
 
@@ -422,7 +430,216 @@
     }
   }
 
-  /* ---------- 11. 拖放导入 ---------- */
+  /* ---------- 11. 设置、主题与问号说明 ---------- */
+
+  const settingFields = {
+    theme: $("settingsTheme"),
+    backgroundVisibility: $("settingsBackgroundVisibility"),
+    backgroundBlur: $("settingsBackgroundBlur"),
+    panelOpacity: $("settingsPanelOpacity"),
+    defaultMode: $("settingsDefaultMode"),
+    defaultAzimuth: $("settingsDefaultAzimuth"),
+    defaultElevation: $("settingsDefaultElevation"),
+    defaultDistance: $("settingsDefaultDistance"),
+    defaultVolume: $("settingsDefaultVolume"),
+    defaultExportBitDepth: $("settingsDefaultExportBitDepth"),
+    defaultConvertBitDepth: $("settingsDefaultConvertBitDepth"),
+    defaultRecordSegment: $("settingsDefaultRecordSegment"),
+    defaultRecordBitDepth: $("settingsDefaultRecordBitDepth"),
+    defaultSilenceTimeout: $("settingsDefaultSilenceTimeout"),
+  };
+  const settingOutputs = {
+    backgroundVisibility: $("settingsBackgroundVisibilityValue"),
+    backgroundBlur: $("settingsBackgroundBlurValue"),
+    panelOpacity: $("settingsPanelOpacityValue"),
+  };
+
+  function readSettingsFields() {
+    return {
+      theme: settingFields.theme.value,
+      appearance: {
+        backgroundVisibility: Number(settingFields.backgroundVisibility.value),
+        backgroundBlur: Number(settingFields.backgroundBlur.value),
+        panelOpacity: Number(settingFields.panelOpacity.value),
+      },
+      defaults: {
+        mode: settingFields.defaultMode.value,
+        azimuth: Number(settingFields.defaultAzimuth.value),
+        elevation: Number(settingFields.defaultElevation.value),
+        distance: Number(settingFields.defaultDistance.value),
+        volume: Number(settingFields.defaultVolume.value),
+        exportBitDepth: settingFields.defaultExportBitDepth.value,
+        convertBitDepth: settingFields.defaultConvertBitDepth.value,
+        recordSegment: settingFields.defaultRecordSegment.value,
+        recordBitDepth: settingFields.defaultRecordBitDepth.value,
+        silenceTimeout: settingFields.defaultSilenceTimeout.value,
+      },
+    };
+  }
+
+  function syncSettingsUI() {
+    if (!settings || !settingFields.theme) return;
+    const value = settings.get();
+    settingFields.theme.value = value.theme;
+    settingFields.backgroundVisibility.value = value.appearance.backgroundVisibility;
+    settingFields.backgroundBlur.value = value.appearance.backgroundBlur;
+    settingFields.panelOpacity.value = value.appearance.panelOpacity;
+    settingOutputs.backgroundVisibility.value = `${value.appearance.backgroundVisibility}%`;
+    settingOutputs.backgroundBlur.value = `${value.appearance.backgroundBlur}px`;
+    settingOutputs.panelOpacity.value = `${value.appearance.panelOpacity}%`;
+    settingFields.defaultMode.value = value.defaults.mode;
+    settingFields.defaultAzimuth.value = value.defaults.azimuth;
+    settingFields.defaultElevation.value = value.defaults.elevation;
+    settingFields.defaultDistance.value = value.defaults.distance;
+    settingFields.defaultVolume.value = value.defaults.volume;
+    settingFields.defaultExportBitDepth.value = value.defaults.exportBitDepth;
+    settingFields.defaultConvertBitDepth.value = value.defaults.convertBitDepth;
+    settingFields.defaultRecordSegment.value = value.defaults.recordSegment;
+    settingFields.defaultRecordBitDepth.value = value.defaults.recordBitDepth;
+    settingFields.defaultSilenceTimeout.value = value.defaults.silenceTimeout;
+    updateThemeToggle();
+  }
+
+  function updateThemeToggle() {
+    if (!el.themeToggle || !settings) return;
+    const preference = settings.get().theme;
+    const icon = preference === "light" ? "i-sun" : preference === "dark" ? "i-moon" : "i-monitor";
+    const label = preference === "light" ? "浅色主题" : preference === "dark" ? "深色主题" : "跟随系统主题";
+    el.themeToggle.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#${icon}" /></svg>`;
+    el.themeToggle.title = `${label}（点击切换）`;
+    el.themeToggle.setAttribute("aria-label", label);
+  }
+
+  function setSettingsOpen(open) {
+    if (!el.settingsPanel) return;
+    el.settingsPanel.hidden = !open;
+    el.settingsButton?.setAttribute("aria-expanded", String(open));
+    if (open) {
+      syncSettingsUI();
+      el.settingsCloseBtn?.focus();
+    } else if (el.settingsButton) {
+      el.settingsButton.focus();
+    }
+  }
+
+  el.settingsButton?.addEventListener("click", () => {
+    setSettingsOpen(el.settingsPanel.hidden);
+  });
+  el.settingsCloseBtn?.addEventListener("click", () => setSettingsOpen(false));
+  el.settingsReset?.addEventListener("click", () => {
+    settings?.reset();
+    syncSettingsUI();
+    window.dispatchEvent(new CustomEvent("asmr3d:apply-defaults"));
+  });
+  el.settingsApplyDefaults?.addEventListener("click", () => {
+    settings?.update(readSettingsFields());
+    syncSettingsUI();
+    window.dispatchEvent(new CustomEvent("asmr3d:apply-defaults"));
+  });
+  el.themeToggle?.addEventListener("click", () => {
+    if (!settings) return;
+    const current = settings.get().theme;
+    settings.update({ theme: current === "system" ? "light" : current === "light" ? "dark" : "system" });
+    syncSettingsUI();
+  });
+  for (const node of Object.values(settingFields)) {
+    if (!node) continue;
+    node.addEventListener("input", () => {
+      settings?.update(readSettingsFields());
+      syncSettingsUI();
+    });
+    node.addEventListener("change", () => {
+      settings?.update(readSettingsFields());
+      syncSettingsUI();
+    });
+  }
+
+  document.querySelectorAll("[data-settings-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const tab = button.dataset.settingsTab;
+      document.querySelectorAll("[data-settings-tab]").forEach((item) => {
+        item.classList.toggle("active", item === button);
+      });
+      document.querySelectorAll("[data-settings-pane]").forEach((pane) => {
+        pane.classList.toggle("active", pane.dataset.settingsPane === tab);
+      });
+    });
+  });
+
+  const infoItems = [
+    { selector: "#sourceSection", title: "声音对象", text: "选择内置素材或导入本地音频/视频。对象模式会将单声道对象送入 HRTF，双耳兼容模式保留原始左右声道。" },
+    { selector: "#modeControl", title: "渲染方式", target: "modeNote", text: "双耳兼容适合 KU100 和普通双耳成品；浏览器 HRTF 适合快速试听；参数化 HRTF 便于观察 ILD、ITD 和头部阴影；Bypass 用于 A/B 对照。" },
+    { selector: "#parameterSection", title: "空间参数", text: "方位角、仰角、距离和音量同时作用于本地播放与直播截获。点击数值可精确输入，单项复位图标可恢复默认值。" },
+    { selector: "#templateSection", title: "参数模板", text: "导入 TXT 后立即套用方位角、仰角、距离、音量和渲染方式；直播截获进行中也可以导入模板，结果会进入同步录制。" },
+    { selector: "#telemetrySection", title: "空间参数读数", text: "显示距离增益、ILD、ITD、空气吸收、近场提升和设备基础延时，用于观察当前参数组合的实际变化。" },
+    { selector: "#exportSection", title: "导出成品音频", text: "完整文件使用离线渲染，速度取决于文件长度和 CPU；指定片段按实时速度捕获。成品统一写入输出文件夹。" },
+    { selector: "#convertSection", title: "视频转音频", text: "使用 Chromium 内置解码器抽取音轨，不依赖 ffmpeg。支持 MP4、MOV、WebM、M4A、MP3、FLAC 等，不支持 MKV 和 DRM 内容。" },
+    { selector: "#liveSection", title: "直播截获", text: "按应用进程回环捕获，只抓所选程序。默认把原声压低 60 dB，并在渲染链补偿，避免原声与渲染结果叠加。" },
+    { selector: "#recordSection", title: "同步录制成品", text: "录制的是空间渲染后的耳机输出。直播结束后校验分段并合并成整段 WAV，同时生成 SHA-256 校验文件。" },
+    { selector: "#transportPanel", title: "播放进度", text: "拖动进度条可实时跳转，停止只暂停并保留播放位置，不会把进度重置到开头。" },
+  ];
+
+  function closeInfo() {
+    if (el.infoPopover) el.infoPopover.hidden = true;
+  }
+
+  function showInfo(button, item) {
+    if (!el.infoPopover) return;
+    const target = item.target ? $(item.target) : null;
+    el.infoPopover.innerHTML = "<strong></strong><p></p>";
+    el.infoPopover.querySelector("strong").textContent = item.title;
+    el.infoPopover.querySelector("p").textContent =
+      target?.textContent?.trim() || item.text;
+    el.infoPopover.hidden = false;
+    const rect = button.getBoundingClientRect();
+    const width = Math.min(320, window.innerWidth - 24);
+    el.infoPopover.style.width = `${width}px`;
+    el.infoPopover.style.left = `${Math.min(
+      Math.max(12, rect.right - width),
+      window.innerWidth - width - 12,
+    )}px`;
+    el.infoPopover.style.top = `${Math.min(rect.bottom + 8, window.innerHeight - 150)}px`;
+  }
+
+  for (const item of infoItems) {
+    const anchor = document.querySelector(item.selector);
+    const section = anchor?.closest(".sect");
+    const head = section?.querySelector(".sect-head");
+    if (!section || !head || head.querySelector(".info-btn")) continue;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "info-btn";
+    button.setAttribute("aria-label", `${item.title}说明`);
+    button.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#i-info" /></svg>';
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const wasVisible = !el.infoPopover.hidden;
+      closeInfo();
+      if (!wasVisible) showInfo(button, item);
+    });
+    head.append(button);
+  }
+
+  window.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    closeInfo();
+    if (!el.settingsPanel?.hidden) setSettingsOpen(false);
+  });
+  document.addEventListener("pointerdown", (event) => {
+    if (!el.infoPopover?.hidden && !el.infoPopover.contains(event.target)) closeInfo();
+    if (
+      !el.settingsPanel?.hidden &&
+      !el.settingsPanel.contains(event.target) &&
+      event.target !== el.settingsButton
+    ) {
+      setSettingsOpen(false);
+    }
+  });
+
+  settings?.subscribe(syncSettingsUI);
+  syncSettingsUI();
+
+  /* ---------- 12. 拖放导入 ---------- */
 
   const AUDIO_EXT = /\.(mp3|wav|ogg|oga|flac|m4a|aac|opus|webm)$/i;
 

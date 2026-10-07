@@ -202,6 +202,50 @@ function distanceToSlider(distance) {
   );
 }
 
+function configuredDefaults() {
+  const fallback = {
+    mode: "binaural",
+    azimuth: 0,
+    elevation: 0,
+    distance: 0.4,
+    volume: 80,
+    exportBitDepth: "16",
+    convertBitDepth: "24",
+    recordSegment: "600",
+    recordBitDepth: "24",
+    silenceTimeout: "30",
+  };
+  return {
+    ...fallback,
+    ...(window.asmr3dSettings?.get?.().defaults || {}),
+  };
+}
+
+function applyConfiguredDefaults({ applyOptions = true } = {}) {
+  const defaults = configuredDefaults();
+  elements.azimuth.value = String(defaults.azimuth);
+  elements.elevation.value = String(defaults.elevation);
+  elements.distance.value = String(distanceToSlider(defaults.distance));
+  elements.volume.value = String(defaults.volume);
+  for (const button of elements.modeControl.querySelectorAll("button[data-mode]")) {
+    button.classList.toggle("active", button.dataset.mode === defaults.mode);
+  }
+  if (applyOptions) {
+    elements.exportBitDepth.value = String(defaults.exportBitDepth);
+    elements.convertBitDepth.value = String(defaults.convertBitDepth);
+    elements.recordSegmentSelect.value = String(defaults.recordSegment);
+    elements.recordBitDepthSelect.value = String(defaults.recordBitDepth);
+    elements.liveSilenceSelect.value = String(defaults.silenceTimeout);
+  }
+  if (state.ready) {
+    changeMode(defaults.mode);
+    updateAudioGraph(true);
+  } else {
+    state.mode = defaults.mode;
+    updateReadouts(currentParameters());
+  }
+}
+
 function formatTime(seconds) {
   if (!Number.isFinite(seconds) || seconds < 0) return "--:--";
   const whole = Math.floor(seconds);
@@ -3029,11 +3073,7 @@ function bindControls() {
   }
 
   elements.resetButton.addEventListener("click", () => {
-    elements.azimuth.value = "0";
-    elements.elevation.value = "0";
-    elements.distance.value = String(distanceToSlider(0.4));
-    elements.volume.value = "80";
-    updateAudioGraph();
+    applyConfiguredDefaults();
   });
 
   elements.templateImportButton.addEventListener("click", () => {
@@ -3068,10 +3108,11 @@ async function initialize() {
   bindLiveControls();
   markMethods();
   updateExportScopeControls();
-  elements.distance.value = String(distanceToSlider(0.4));
-  const parameters = currentParameters();
-  updateReadouts(parameters);
+  applyConfiguredDefaults();
   updateProgressUI();
+  window.addEventListener("asmr3d:apply-defaults", () => {
+    applyConfiguredDefaults();
+  });
   try {
     await loadManifest();
     setStatus("素材库已载入，按播放开始测试。", "idle");

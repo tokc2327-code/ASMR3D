@@ -8,6 +8,8 @@
 /* ---------- 1. 设计令牌 ---------- */
 :root {
   color-scheme: dark;
+  --bg-image-opacity: 0.4;
+  --bg-blur: 3px;
 
   /* 基底与表面 */
   --bg-0: #0b0d12;
@@ -71,17 +73,65 @@ body {
   flex-direction: column;
   overflow: hidden;
   background-color: var(--bg-0);
-  background-image:
-    linear-gradient(180deg, rgba(9, 11, 15, 0.93), rgba(9, 11, 15, 0.965)),
-    url("background.jpg");
-  background-size: cover;
-  background-position: center 30%;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
   color: var(--text-1);
   font-family: var(--font-ui);
   font-size: 13px;
   line-height: 1.45;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: -20px;
+  z-index: -2;
+  background-image: url("background.jpg");
+  background-size: cover;
+  background-position: center 30%;
+  background-repeat: no-repeat;
+  filter: blur(var(--bg-blur));
+  opacity: var(--bg-image-opacity);
+  pointer-events: none;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--page-overlay);
+  pointer-events: none;
+}
+
+:root[data-theme="dark"] {
+  --page-overlay: rgba(7, 9, 13, 0.62);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --page-overlay: rgba(246, 248, 251, 0.76);
+  --bg-0: #f3f5f8;
+  --line: rgba(25, 32, 44, 0.12);
+  --line-strong: rgba(25, 32, 44, 0.22);
+  --text-1: #1d2430;
+  --text-2: #4b5668;
+  --text-3: #788394;
+  --pink-300: #d94f88;
+  --pink-400: #ca3f78;
+  --pink-500: #b92f69;
+  --pink-soft: rgba(217, 79, 136, 0.1);
+  --pink-line: rgba(217, 79, 136, 0.42);
+  --on-pink: #fff8fb;
+  --num: #9b6200;
+  --num-line: rgba(155, 98, 0, 0.24);
+  --ok: #b92f69;
+  --warn: #a86500;
+  --danger: #c93446;
+  --danger-soft: rgba(201, 52, 70, 0.1);
+  --danger-line: rgba(201, 52, 70, 0.34);
+  --info: #2d69c7;
+  --info-soft: rgba(45, 105, 199, 0.1);
+  --info-line: rgba(45, 105, 199, 0.34);
+  --shadow-pop: 0 10px 36px rgba(35, 45, 65, 0.18);
 }
 
 h1,
@@ -1605,4 +1655,223 @@ body[data-dragging] #convertSection {
 #recordStatus,
 #templateStatus {
   overflow-wrap: anywhere;
+}
+
+/* ---------- 22. 设置、主题与说明弹层 ---------- */
+[hidden] {
+  display: none !important;
+}
+
+.appbar-icon-btn {
+  width: 30px;
+  height: 30px;
+}
+
+.info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+}
+
+.info-btn:hover {
+  border-color: var(--pink-line);
+  color: var(--pink-300);
+}
+
+.info-popover {
+  position: fixed;
+  z-index: 70;
+  padding: 11px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  box-shadow: var(--shadow-pop);
+  backdrop-filter: blur(12px);
+}
+
+.info-popover strong {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text-1);
+  font-size: 12.5px;
+}
+
+.info-popover p {
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.settings-panel {
+  position: fixed;
+  z-index: 60;
+  top: 52px;
+  right: 12px;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  width: min(430px, calc(100vw - 24px));
+  max-height: calc(100vh - 94px);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  box-shadow: var(--shadow-pop);
+  backdrop-filter: blur(14px);
+}
+
+.settings-head,
+.settings-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-foot {
+  justify-content: flex-end;
+  border-top: 1px solid var(--line);
+  border-bottom: 0;
+}
+
+.settings-head h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+}
+
+.settings-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-tabs button {
+  padding: 7px 10px 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+}
+
+.settings-tabs button.active {
+  border-bottom-color: var(--pink-400);
+  color: var(--text-1);
+}
+
+.settings-content {
+  overflow-y: auto;
+  padding: 13px;
+}
+
+.settings-pane {
+  display: none;
+}
+
+.settings-pane.active {
+  display: block;
+}
+
+.settings-pane .field-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.settings-pane output {
+  color: var(--num);
+  font-family: var(--font-mono);
+}
+
+.settings-hint {
+  margin-top: 8px;
+  color: var(--text-3);
+  font-size: 11px;
+}
+
+.about-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.about-brand img {
+  border-radius: 9px;
+}
+
+.about-brand strong,
+.about-brand span {
+  display: block;
+}
+
+.about-brand span {
+  color: var(--text-3);
+  font-size: 11px;
+}
+
+.about-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.about-list > div {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.about-list dt {
+  color: var(--text-3);
+}
+
+.about-list dd {
+  margin: 0;
+  color: var(--text-1);
+  overflow-wrap: anywhere;
+}
+
+.about-list a {
+  color: var(--pink-300);
+}
+
+:root[data-theme="light"] .btn,
+:root[data-theme="light"] select,
+:root[data-theme="light"] input[type="file"],
+:root[data-theme="light"] .file-input,
+:root[data-theme="light"] .settings-panel,
+:root[data-theme="light"] .info-popover {
+  background-color: rgba(255, 255, 255, 0.94);
+}
+
+:root[data-theme="light"] .btn:hover:not(:disabled),
+:root[data-theme="light"] .btn-ghost:hover:not(:disabled),
+:root[data-theme="light"] .icon-btn:hover {
+  background-color: rgba(255, 255, 255, 1);
+}
+
+:root[data-theme="light"] .metric,
+:root[data-theme="light"] .signal-chain,
+:root[data-theme="light"] .drawer,
+:root[data-theme="light"] .toast {
+  background-color: rgba(255, 255, 255, 0.9);
+}
+
+:root[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background-color: rgba(43, 52, 68, 0.2);
 }
