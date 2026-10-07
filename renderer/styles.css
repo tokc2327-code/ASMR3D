@@ -2029,16 +2029,17 @@ input[type="file"],
 
 /* 禁用播放按钮也保持三角标清晰可见。 */
 #playButton:disabled {
-  opacity: 0.78;
-  color: var(--pink-400);
-  background: var(--pink-soft);
+  opacity: 1;
+  color: var(--pink-500);
+  background: rgba(255, 143, 184, 0.1);
   border-color: var(--pink-line);
   filter: none;
 }
 
 #playButton:disabled .icon {
-  fill: currentColor;
-  stroke: currentColor;
+  color: var(--pink-500);
+  fill: var(--pink-500);
+  stroke: var(--pink-500);
 }
 
 /* 播放/暂停合并为同一按钮，并增加回到开头。 */
