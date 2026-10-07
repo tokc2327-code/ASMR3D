@@ -1,0 +1,9 @@
+{
+  "alwaysUpdateLinks": true,
+  "attachmentFolderPath": "附件",
+  "newFileLocation": "current",
+  "showLineNumber": true,
+  "showFrontmatter": true,
+  "readableLineLength": false,
+  "strictLineBreaks": false
+}

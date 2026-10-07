@@ -36,6 +36,7 @@ for (const item of selectedItems) {
 for (const file of [
   "styles.css",
   "app.js",
+  "enhance.js",
   "live-capture-worklet.js",
   "background.jpg",
   "icon.svg",
@@ -59,11 +60,11 @@ fs.writeFileSync(
 let html = fs.readFileSync(path.join(RENDERER_DIR, "index.html"), "utf8");
 html = html
   .replace(
-    '<link rel="stylesheet" href="/styles.css" />',
+    '<link rel="stylesheet" href="./styles.css" />',
     '<link rel="manifest" href="./manifest.webmanifest" />\n    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />\n    <link rel="stylesheet" href="./styles.css" />',
   )
   .replace(
-    '<script type="module" src="/app.js"></script>',
+    '<script type="module" src="./app.js"></script>',
     '<script src="./mobile-materials.js"></script>\n    <script defer src="./app.js"></script>\n    <script>\n      if (location.protocol.startsWith("http") && "serviceWorker" in navigator) {\n        navigator.serviceWorker.register("./service-worker.js");\n      }\n    </script>',
   );
 fs.writeFileSync(path.join(OUTPUT_DIR, "index.html"), html);
@@ -100,6 +101,7 @@ const cacheAssets = [
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./enhance.js",
   "./mobile-materials.js",
   "./background.jpg",
   "./manifest.webmanifest",
