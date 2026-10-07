@@ -19,7 +19,7 @@
 
 未修改：`renderer/app.js`、`desktop/*.cjs`、音频 Web Audio 链路和 IPC 协议。
 修正记录：`design/prototype/app.js` 已由旧工作区副本替换为主仓库
-`D:\asmr3dv0.2\renderer\app.js`，sha256 为 `DF549D40…`，以覆盖长音频分段修复。
+`D:\asmr3dv0.2\renderer\app.js`，并随距离模型和直播衰减修正继续同步。
 
 ## 2. 截图证据（`design/screenshots/`）
 
@@ -47,8 +47,8 @@
 4. **方法项数量**：`.method-list li[data-method]` = **12**。
 5. **`node --check`**：`enhance.js`、`dev-server.mjs`、`app.js` 全部通过。
 6. **app.js 哈希**：`design/prototype/app.js` 与主仓库
-   `D:\asmr3dv0.2\renderer\app.js` sha256 均为
-   `DF549D4004BB7C51CC7EF6EB8D6DA6DBB0C686D2841A27859E28D6AE0EE053A5`，**一致**。
+   `D:\asmr3dv0.2\renderer\app.js` 当前 sha256 均为
+   `E4E6844C8DA34E6680D6C1AAA6BC405264D958BF5DE24CD59F5EE5DE5C7BF111`，**一致**。
 7. **结构性契约**：`#templateFileInput` 保持 `hidden`；`.method-list` 存在；`#liveModeBadge`/`[data-state]` 钩子齐全。
 8. **交互回归**（1440×900 实测）：播放→停止后滑杆 6.552s **不归零**且保持可拖；→ 键 +10 秒（0:06→0:16）；行内单项复位 45°→0°（滑杆值、读数、`--fill` 三者同步）；章节折叠/展开（aria-expanded 正确）；模式选中态三重表达；读数点击输入 62.5°（上一轮验证，逻辑未变）。
 
@@ -144,4 +144,34 @@
 ```text
 D:\asmr3dv0.2\dist\asmr3d-v0.2-win-x64\输出\asmr3d_recording_20261007_165242.wav
 SHA-256: 411572fe8a97…
+```
+
+## 8. 原声压低改为 −60 dB
+
+用户反馈默认 `−40 dB` 下原声仍可听见，确认改为 `−60 dB`。
+
+实现：
+
+```text
+SOURCE_ATTENUATION_VOLUME = 0.001
+MAX_COMPENSATION_GAIN = 2000   // +66 dB 余量
+```
+
+Windows 进程回环实测（循环粉噪声，锁定同一 PID）：
+
+```text
+基准        峰值 -0.64 dBFS / RMS -12.10 dBFS
+0.01 (-40) 峰值 -40.66 dBFS / RMS -52.42 dBFS / 实测约 -40.3 dB
+0.001(-60) 峰值 -60.83 dBFS / RMS -72.40 dBFS / 实测约 -60.3 dB
+```
+
+打包版端到端回归：
+
+```text
+状态文案：已把原声压到 −60 dB 并在渲染链补偿
+截获：msedge / 48000 Hz / 2 ch
+参数模板：截获中 −80° → +80° 即时生效
+成品左右声级差：约 +7.6 dB → −7.6 dB
+录制文件：asmr3d_recording_20261007_185805.wav
+SHA-256 前缀：6d921c32548f
 ```
