@@ -9,6 +9,12 @@ function subscribe(channel, handler) {
 contextBridge.exposeInMainWorld("asmr3dDesktop", {
   platform: process.platform,
   version: "0.2.0",
+  versions: {
+    electron: process.versions.electron || "",
+    chromium: process.versions.chrome || "",
+    node: process.versions.node || "",
+    v8: process.versions.v8 || "",
+  },
 
   // Live capture (Windows process / system loopback)
   listLiveTargets: () => ipcRenderer.invoke("asmr3d:list-live-targets"),

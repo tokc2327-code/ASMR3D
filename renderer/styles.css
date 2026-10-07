@@ -2015,6 +2015,32 @@ select option {
   filter: none;
 }
 
+/* 文件输入整行可点击，不再显示原生“选择文件”小按钮。 */
+input[type="file"]::-webkit-file-selector-button,
+.file-input::-webkit-file-selector-button {
+  display: none;
+}
+
+input[type="file"],
+.file-input {
+  cursor: pointer;
+  color: var(--text-2);
+}
+
+/* 禁用播放按钮也保持三角标清晰可见。 */
+#playButton:disabled {
+  opacity: 0.78;
+  color: var(--pink-400);
+  background: var(--pink-soft);
+  border-color: var(--pink-line);
+  filter: none;
+}
+
+#playButton:disabled .icon {
+  fill: currentColor;
+  stroke: currentColor;
+}
+
 /* 播放/暂停合并为同一按钮，并增加回到开头。 */
 .transport {
   grid-template-columns: 1.5fr 1fr 1fr;

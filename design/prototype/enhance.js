@@ -655,9 +655,15 @@
   syncSettingsUI();
 
   if (el.aboutRuntime) {
-    const chromium = /Chromium\/([\d.]+)/.exec(navigator.userAgent)?.[1] || "未知";
-    const electron = window.asmr3dDesktop?.version || "开发环境";
-    el.aboutRuntime.textContent = `Electron ${electron} · Chromium ${chromium}`;
+    const versions = window.asmr3dDesktop?.versions;
+    const chromium =
+      versions?.chromium ||
+      /(?:Chromium|Chrome)\/([\d.]+)/.exec(navigator.userAgent)?.[1] ||
+      "未知";
+    const electron = versions?.electron || window.asmr3dDesktop?.version || "开发环境";
+    const node = versions?.node || "未知";
+    const v8 = versions?.v8 || "未知";
+    el.aboutRuntime.textContent = `Electron ${electron} · Chromium ${chromium} · Node ${node} · V8 ${v8}`;
   }
 
   el.checkUpdateButton?.addEventListener("click", async () => {
