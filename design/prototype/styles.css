@@ -2042,6 +2042,27 @@ input[type="file"],
   stroke: var(--pink-500);
 }
 
+/* Chromium 的真实伪元素是 file-upload-button；旧写法兼容保留。 */
+input[type="file"]::-webkit-file-upload-button,
+.file-input::-webkit-file-upload-button,
+input[type="file"]::-webkit-file-selector-button,
+.file-input::-webkit-file-selector-button {
+  appearance: none;
+  -webkit-appearance: none;
+  display: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+}
+
+input[type="file"],
+.file-input {
+  cursor: pointer;
+  color: var(--text-2);
+}
+
 /* 播放/暂停统一为描边式控制：浅色深粉，深色浅粉。 */
 :root {
   --transport-bg: rgba(31, 36, 49, 0.95);
