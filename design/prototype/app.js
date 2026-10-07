@@ -136,6 +136,11 @@ const state = {
 const constants = {
   refDistance: 0.2,
   maxDistance: 10,
+  nearFieldGuardDistance: 0.35,
+  nearFieldStartDistance: 0.6,
+  nearFieldMaxGainDb: 3,
+  reverbWetFloor: 0.12,
+  reverbWetScale: 0.18,
   maxIldDb: 8,
   maxItdSeconds: 0.00065,
   minDistanceGainDb: 20 * Math.log10(0.2 / 10),
@@ -147,6 +152,41 @@ function dbToGain(db) {
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function smoothstep(edge0, edge1, value) {
+  const t = clamp((value - edge0) / (edge1 - edge0), 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+function spatialDistance(distance) {
+  return Math.max(distance, constants.nearFieldGuardDistance);
+}
+
+function nearFieldGainDb(distance) {
+  const progress =
+    1 -
+    smoothstep(
+      constants.nearFieldGuardDistance,
+      constants.nearFieldStartDistance,
+      spatialDistance(distance),
+    );
+  return constants.nearFieldMaxGainDb * progress;
+}
+
+function reverbWetGain(distance) {
+  const guardedDistance = spatialDistance(distance);
+  return (
+    constants.reverbWetFloor +
+    constants.reverbWetScale *
+      (Math.log(guardedDistance / constants.refDistance) /
+        Math.log(constants.maxDistance / constants.refDistance))
+  );
+}
+
+function hrtfDistanceCompensation(distance) {
+  const guardedDistance = spatialDistance(distance);
+  return guardedDistance > distance ? guardedDistance / distance : 1;
 }
 
 function sliderToDistance(value) {
@@ -890,13 +930,16 @@ function buildOfflineGraph(offlineContext, audioBuffer, parameters) {
     panner.rolloffFactor = 1;
     panner.coneInnerAngle = 360;
 
+    const hrtfDistanceGain = offlineContext.createGain();
+    hrtfDistanceGain.gain.value = hrtfDistanceCompensation(parameters.distance);
     const position = cartesianPosition(parameters);
     panner.positionX.value = position.x;
     panner.positionY.value = position.y;
     panner.positionZ.value = position.z;
     source.connect(monoInput);
     monoInput.connect(panner);
-    panner.connect(master);
+    panner.connect(hrtfDistanceGain);
+    hrtfDistanceGain.connect(master);
   } else if (state.mode === "parametric") {
     const monoInput = offlineContext.createGain();
     monoInput.channelCount = 1;
@@ -1281,10 +1324,11 @@ async function importSpatialTemplate(file) {
 function cartesianPosition({ azimuth, elevation, distance }) {
   const az = (azimuth * Math.PI) / 180;
   const el = (elevation * Math.PI) / 180;
-  const horizontal = distance * Math.cos(el);
+  const guardedDistance = spatialDistance(distance);
+  const horizontal = guardedDistance * Math.cos(el);
   return {
     x: horizontal * Math.sin(az),
-    y: distance * Math.sin(el),
+    y: guardedDistance * Math.sin(el),
     z: -horizontal * Math.cos(az),
   };
 }
@@ -1484,6 +1528,7 @@ function ensureAudioGraph() {
 
   const hrtfPath = audioContext.createGain();
   const hrtfOutput = audioContext.createGain();
+  const hrtfDistanceGain = audioContext.createGain();
   const panner = audioContext.createPanner();
   panner.panningModel = "HRTF";
   panner.distanceModel = "inverse";
@@ -1517,7 +1562,8 @@ function ensureAudioGraph() {
   limiter.release.value = 0.12;
 
   hrtfPath.connect(panner);
-  panner.connect(hrtfOutput);
+  panner.connect(hrtfDistanceGain);
+  hrtfDistanceGain.connect(hrtfOutput);
   hrtfOutput.connect(master);
 
   parametric.output.connect(parametricOutput);
@@ -1543,6 +1589,7 @@ function ensureAudioGraph() {
     monitorGain,
     limiter,
     hrtfPath,
+    hrtfDistanceGain,
     parametricPath,
     compatibilityPath,
     bypassPath,
@@ -1677,10 +1724,11 @@ function setNodeParam(param, value, timeConstant, immediate = false, context = n
 function applyParametricSettings(path, audioContext, parameters, immediate = false) {
   const pan = Math.sin((parameters.azimuth * Math.PI) / 180);
   const distance = parameters.distance;
+  const guardedDistance = spatialDistance(distance);
   const elevation = parameters.elevation / 30;
   const distanceGain = constants.refDistance / distance;
-  const airCutoff = 20000 * Math.exp(-0.1 * (distance - constants.refDistance));
-  const nearGain = 5 * Math.max(0, 1 - distance / 1);
+  const airCutoff = 20000 * Math.exp(-0.1 * (guardedDistance - constants.refDistance));
+  const nearGain = nearFieldGainDb(distance);
   const leftGain = dbToGain(-Math.max(0, pan) * constants.maxIldDb);
   const rightGain = dbToGain(-Math.max(0, -pan) * constants.maxIldDb);
   const itd = constants.maxItdSeconds * pan;
@@ -1725,7 +1773,7 @@ function applyParametricSettings(path, audioContext, parameters, immediate = fal
   setNodeParam(path.rightNear.gain, nearGain, 0.03, immediate, audioContext);
   setNodeParam(
     path.wetGain.gain,
-    0.04 + 0.26 * ((Math.log(distance / 0.2) / Math.log(50)) || 0),
+    reverbWetGain(distance),
     0.04,
     immediate,
     audioContext,
@@ -1735,11 +1783,11 @@ function applyParametricSettings(path, audioContext, parameters, immediate = fal
 function applyCompatibilitySettings(path, audioContext, parameters, immediate = false) {
   const pannerValue = Math.sin((parameters.azimuth * Math.PI) / 180);
   const elevation = parameters.elevation / 30;
+  const guardedDistance = spatialDistance(parameters.distance);
   const distanceGainValue = constants.refDistance / parameters.distance;
-  const airCutoff = 20000 * Math.exp(-0.1 * (parameters.distance - constants.refDistance));
-  const nearGain = 5 * Math.max(0, 1 - parameters.distance);
-  const wet =
-    0.04 + 0.26 * ((Math.log(parameters.distance / 0.2) / Math.log(50)) || 0);
+  const airCutoff = 20000 * Math.exp(-0.1 * (guardedDistance - constants.refDistance));
+  const nearGain = nearFieldGainDb(parameters.distance);
+  const wet = reverbWetGain(parameters.distance);
 
   setNodeParam(path.panner.pan, pannerValue * 0.92, 0.025, immediate, audioContext);
   setNodeParam(
@@ -1779,6 +1827,12 @@ function updateAudioGraph(force = false) {
     state.panner.positionY.setTargetAtTime(position.y, time, 0.025);
     state.panner.positionZ.setTargetAtTime(position.z, time, 0.025);
   }
+  if (state.hrtfDistanceGain) {
+    setAudioParam(
+      state.hrtfDistanceGain.gain,
+      hrtfDistanceCompensation(parameters.distance),
+    );
+  }
   if (state.parametric) {
     applyParametricSettings(
       state.parametric,
@@ -1813,8 +1867,8 @@ function updateReadouts(parameters) {
   const pan = Math.sin((parameters.azimuth * Math.PI) / 180);
   const ild = constants.maxIldDb * Math.abs(pan);
   const itd = constants.maxItdSeconds * Math.abs(pan);
-  const airCutoff = 20000 * Math.exp(-0.1 * (parameters.distance - 0.2));
-  const nearGain = 5 * Math.max(0, 1 - parameters.distance);
+  const airCutoff = 20000 * Math.exp(-0.1 * (spatialDistance(parameters.distance) - 0.2));
+  const nearGain = nearFieldGainDb(parameters.distance);
 
   elements.azimuthOutput.value = `${parameters.azimuth.toFixed(1)}°`;
   elements.elevationOutput.value = `${parameters.elevation.toFixed(1)}°`;
