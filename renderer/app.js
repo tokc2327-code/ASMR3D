@@ -2252,8 +2252,8 @@ function setLiveStatus(message, stateName = "idle") {
 // original can be pushed far below audibility while the renderer applies the
 // matching digital gain. That keeps live monitoring (and live parameter
 // changes) while removing the double-audio echo.
-const SOURCE_ATTENUATION_VOLUME = 0.01; // -40 dB
-const MAX_COMPENSATION_GAIN = 1000; // +60 dB
+const SOURCE_ATTENUATION_VOLUME = 0.001; // -60 dB
+const MAX_COMPENSATION_GAIN = 2000; // +66 dB of headroom
 
 // The monitor bus sits after the recording tap, so muting it removes what you
 // hear without affecting the recording.
@@ -2603,7 +2603,7 @@ async function startLiveCapture() {
     startLiveMeterLoop();
     const handlingNote =
       {
-        ok: "已把原声压到 −40 dB 并在渲染链补偿，耳机里只会听到空间渲染结果。",
+        ok: "已把原声压到 −60 dB 并在渲染链补偿，耳机里只会听到空间渲染结果。",
         silent: "该应用当前音量已接近静音，无法压低原声。",
         skipped: "未处理原声，可能出现叠加回声。",
         unsupported: "当前环境不支持压低原声。",
