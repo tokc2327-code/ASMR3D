@@ -154,12 +154,12 @@ function treeLines(directory, prefix = "") {
 
 function importantArtifacts() {
   const files = [
-    "dist/asmr3d-v0.3-test.apk",
-    "dist/asmr3d-v0.3-android.zip",
-    "dist/asmr3d-v0.3-win-x64.zip",
-    "dist/asmr3d-v0.3-mobile.zip",
-    "dist/asmr3d-v0.3-github-source.zip",
-    "dist/asmr3d-v0.3-release-assets.zip",
+    "dist/asmr3d-v0.3.1-test.apk",
+    "dist/asmr3d-v0.3.1-android.zip",
+    "dist/asmr3d-v0.3.1-win-x64.zip",
+    "dist/asmr3d-v0.3.1-mobile.zip",
+    "dist/asmr3d-v0.3.1-github-source.zip",
+    "dist/asmr3d-v0.3.1-release-assets.zip",
   ];
   return files
     .filter((file) => fs.existsSync(path.join(ROOT, file)))
@@ -200,13 +200,13 @@ https://github.com/tokc2327-code/ASMR3D
 Release：
 
 \`\`\`text
-https://github.com/tokc2327-code/ASMR3D/releases/tag/v0.3-beta
+https://github.com/tokc2327-code/ASMR3D/releases/tag/v0.3.1-beta
 \`\`\`
 
 当前版本：
 
 \`\`\`text
-v0.3 公测版
+v0.3.1 公测版
 \`\`\`
 
 ## 当前平台

@@ -6,16 +6,16 @@
 完全离线运行，不上传任何音频，不需要登录任何账号。
 
 ```text
-当前版本：v0.3 公测版
+当前版本：v0.3.1 公测版
 仓库：https://github.com/tokc2327-code/ASMR3D
-下载：https://github.com/tokc2327-code/ASMR3D/releases/tag/v0.3-beta
+下载：https://github.com/tokc2327-code/ASMR3D/releases/tag/v0.3.1-beta
 许可：MIT（代码） / CC0（全部测试音频）
 ```
 
 ## 三分钟上手
 
-1. 到 [Releases](https://github.com/tokc2327-code/ASMR3D/releases/tag/v0.3-beta) 下载
-   `asmr3d-v0.3-win-x64.zip`，解压到任意可写目录；
+1. 到 [Releases](https://github.com/tokc2327-code/ASMR3D/releases/tag/v0.3.1-beta) 下载
+   `asmr3d-v0.3.1-win-x64.zip`，解压到任意可写目录；
 2. 双击 `asmr3d空间渲染器.exe`；
 3. 在左上「软件内置素材库」挑一条示例，或「导入本地文件」选自己的音频；
 4. 点「播放」，拖「空间参数」里的方位角 / 仰角 / 距离听变化；

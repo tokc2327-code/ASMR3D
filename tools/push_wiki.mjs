@@ -86,7 +86,7 @@ try {
       "user.email=asmr3d@users.noreply.github.com",
       "commit",
       "-m",
-      "Update wiki for v0.3 公测版",
+      "Update wiki for v0.3.1 公测版",
     ]);
     git(["push", "origin", "HEAD"]);
     console.log("已推送。");

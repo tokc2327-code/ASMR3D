@@ -5,8 +5,15 @@
 当前版本：
 
 ```text
-v0.3 公测版
+v0.3.1 公测版
 ```
+
+### v0.3.1 修复
+
+- 直播截获在压低原声模式下不再被静音检测误判并自动退出
+- 静音自动停止默认关闭，截获链路异常中断时最多自动重连 3 次
+- 文件管理器右键“打开方式”可直接进入本地文件导入
+- 检查更新发现新版本后可直接打开 Release 下载页
 
 ## 当前开发优先级
 
@@ -99,8 +106,8 @@ npm run build:mobile
 输出：
 
 ```text
-dist/asmr3d-v0.3-mobile/
-dist/asmr3d-v0.3-mobile.zip
+dist/asmr3d-v0.3.1-mobile/
+dist/asmr3d-v0.3.1-mobile.zip
 ```
 
 ## 构建 Android APK
@@ -131,8 +138,8 @@ npm run exe:release
 输出：
 
 ```text
-dist/asmr3d-v0.3-win-x64/asmr3d空间渲染器.exe
-dist/asmr3d-v0.3-win-x64.zip
+dist/asmr3d-v0.3.1-win-x64/asmr3d空间渲染器.exe
+dist/asmr3d-v0.3.1-win-x64.zip
 ```
 
 ## 素材许可

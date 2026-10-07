@@ -297,6 +297,7 @@ function startLiveCapture(options) {
   const {
     processId,
     silenceTimeoutSeconds = 0,
+    audibleThreshold = 0.0009,
     restoreVolumeOnExit = null,
     parentProcessId = 0,
     chunkFrames = 1024,
@@ -313,6 +314,10 @@ function startLiveCapture(options) {
   if (silenceTimeoutSeconds > 0) {
     args.push("-SilenceTimeoutSeconds", String(silenceTimeoutSeconds));
   }
+  args.push(
+    "-AudibleThreshold",
+    String(Math.min(0.01, Math.max(0.00000001, Number(audibleThreshold) || 0.0009))),
+  );
   if (restoreVolumeOnExit !== null) {
     args.push("-RestoreVolumeOnExit", String(restoreVolumeOnExit));
   }

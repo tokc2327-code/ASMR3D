@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>asmr3d空间渲染器 v0.3公测版</title>
+    <title>asmr3d空间渲染器 v0.3.1公测版</title>
     <link rel="icon" href="data:," />
     <script src="./settings.js"></script>
     <link rel="stylesheet" href="./styles.css" />
@@ -75,8 +75,14 @@
               </label>
               <label class="field">
                 <span class="field-label">导入本地文件</span>
-                <input id="fileInput" type="file" accept="audio/*" />
+                <input id="fileInput" type="file" accept="audio/*,video/*" />
               </label>
+              <button id="registerFileAssociationsButton" class="btn btn-wide" type="button">
+                注册到文件管理器打开方式
+              </button>
+              <p class="settings-hint" id="fileAssociationHint">
+                注册后可在文件管理器右键音频或视频，选择“打开方式 → asmr3d空间渲染器”。
+              </p>
               <div class="transport">
                 <div class="transport-toggle">
                   <button id="playButton" class="btn btn-primary btn-icon btn-play" type="button" aria-label="播放" title="播放（空格）">
@@ -478,8 +484,8 @@
               <label class="field">
                 <span class="field-label">静音自动停止</span>
                 <select id="liveSilenceSelect">
-                  <option value="0">关闭</option>
-                  <option value="30" selected>30 秒</option>
+                  <option value="0" selected>关闭</option>
+                  <option value="30">30 秒</option>
                   <option value="60">60 秒</option>
                   <option value="120">120 秒</option>
                 </select>
@@ -604,7 +610,7 @@
               <select id="settingsDefaultRecordBitDepth"><option value="16">16-bit</option><option value="24">24-bit</option></select>
             </label>
             <label class="field"><span class="field-label">默认静音停止</span>
-              <select id="settingsDefaultSilenceTimeout"><option value="0">关闭</option><option value="30">30 秒</option><option value="60">60 秒</option><option value="120">120 秒</option></select>
+              <select id="settingsDefaultSilenceTimeout"><option value="0" selected>关闭</option><option value="30">30 秒</option><option value="60">60 秒</option><option value="120">120 秒</option></select>
             </label>
           </div>
           <button id="settingsApplyDefaults" class="btn btn-primary btn-wide" type="button">立即应用于默认参数</button>
@@ -613,10 +619,10 @@
         <div class="settings-pane" data-settings-pane="about">
           <div class="about-brand">
             <img src="./icon-192.png" alt="" width="42" height="42" />
-            <div><strong>asmr3d空间渲染器</strong><span>v0.3 公测版</span></div>
+            <div><strong>asmr3d空间渲染器</strong><span>v0.3.1 公测版</span></div>
           </div>
           <dl class="about-list">
-            <div><dt>版本</dt><dd>v0.3 公测版（0.3.0）</dd></div>
+            <div><dt>版本</dt><dd>v0.3.1 公测版（0.3.1）</dd></div>
             <div><dt>开发者</dt><dd>紫色系汽水</dd></div>
             <div><dt>邮箱</dt><dd><a href="mailto:tokc2327@gmail.com">tokc2327@gmail.com</a></dd></div>
             <div><dt>GitHub</dt><dd><a href="https://github.com/tokc2327-code/ASMR3D" target="_blank" rel="noreferrer">tokc2327-code/ASMR3D</a></dd></div>

@@ -7,8 +7,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const RENDERER_DIR = path.join(ROOT, "renderer");
 const MATERIALS_DIR = path.join(ROOT, "materials");
 const DIST_ROOT = path.join(ROOT, "dist");
-const OUTPUT_DIR = path.join(DIST_ROOT, "asmr3d-v0.3-mobile");
-const ZIP_PATH = path.join(DIST_ROOT, "asmr3d-v0.3-mobile.zip");
+const OUTPUT_DIR = path.join(DIST_ROOT, "asmr3d-v0.3.1-mobile");
+const ZIP_PATH = path.join(DIST_ROOT, "asmr3d-v0.3.1-mobile.zip");
 
 const sampleIds = [171335, 169373, 169329, 565204];
 
@@ -73,7 +73,7 @@ fs.writeFileSync(path.join(OUTPUT_DIR, "index.html"), html);
 const pwaManifest = {
   name: "asmr3d空间渲染器",
   short_name: "asmr3d",
-  version: "0.1",
+  version: "0.3.1",
   start_url: "./index.html",
   scope: "./",
   display: "standalone",
@@ -113,7 +113,7 @@ const cacheAssets = [
 ];
 fs.writeFileSync(
   path.join(OUTPUT_DIR, "service-worker.js"),
-  `const CACHE_NAME = "asmr3d-v0.3-mobile";
+  `const CACHE_NAME = "asmr3d-v0.3.1-mobile";
 const ASSETS = ${JSON.stringify(cacheAssets, null, 2)};
 
 self.addEventListener("install", (event) => {
@@ -140,7 +140,7 @@ self.addEventListener("fetch", (event) => {
 
 fs.writeFileSync(
   path.join(OUTPUT_DIR, "README.md"),
-  `# asmr3d空间渲染器 v0.3 公测版（手机版）
+  `# asmr3d空间渲染器 v0.3.1 公测版（手机版）
 
 ## 推荐运行方式
 

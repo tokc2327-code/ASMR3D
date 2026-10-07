@@ -8,7 +8,7 @@ const SOURCE_DIR = path.join(
   ROOT,
   "dist",
   "github-package",
-  "asmr3d-v0.3-source",
+  "asmr3d-v0.3.1-source",
 );
 const RELEASE_DIR = path.join(
   ROOT,
@@ -166,7 +166,7 @@ async function uploadSource() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      message: process.env.ASMR3D_COMMIT_MSG || "Release v0.3 公测版",
+      message: process.env.ASMR3D_COMMIT_MSG || "Release v0.3.1 公测版",
       tree: tree.sha,
       parents: currentCommit ? [currentCommit.sha] : [],
     }),
@@ -218,7 +218,7 @@ async function updateRepositoryMetadata() {
 
 async function getOrCreateRelease() {
   try {
-    return await github(`/repos/${OWNER}/${REPO}/releases/tags/v0.3-beta`);
+    return await github(`/repos/${OWNER}/${REPO}/releases/tags/v0.3.1-beta`);
   } catch (error) {
     if (!String(error.message).includes("404")) throw error;
   }
@@ -226,36 +226,27 @@ async function getOrCreateRelease() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      tag_name: "v0.3-beta",
+      tag_name: "v0.3.1-beta",
       target_commitish: "main",
-      name: "asmr3d空间渲染器 v0.3 公测版",
+      name: "asmr3d空间渲染器 v0.3.1 公测版",
       body:
         [
-          "## v0.3 公测版",
-          "",
-          "### 新增",
-          "- 设置面板：跟随系统 / 浅色 / 深色主题，背景图显隐、模糊和面板透明度",
-          "- 默认参数：可配置渲染方式、空间参数、导出位深和录制默认值",
-          "- 关于页面：开发者、邮箱、GitHub、MIT、Electron / Chromium / Node / V8 信息",
-          "- 检查更新：读取 GitHub Release，并在按钮下方提示联网状态和检查结果",
-          "- 导出时长：30 秒 / 2 分钟 / 5 分钟 / 自定义",
-          "- 快速导出：缩短卷积混响尾音，降低长文件离线渲染耗时",
-          "- 导出阶段计时：显示读取、解码、渲染、编码和写盘耗时",
-          "",
-          "### 变更",
-          "- 播放/暂停合并，新增回到开头按钮",
-          "- 原声压低从 −40 dB 改为 −60 dB，补偿上限提高到 +66 dB",
-          "- 增加近距离空间保护，避免 0.2–0.4 m 出现空耳感",
-          "- 视频转音频使用独立转换进度区",
-          "- 文件选择改为整个输入框可点击，移除原生选择文件小按钮",
+          "## v0.3.1 公测版",
           "",
           "### 修复",
-          "- 修复暂停后继续播放会重置进度",
-          "- 修复浅色/深色模式下拉选项和播放图标对比度",
-          "- 修复视频转换和录制选项在浅色模式下不可读",
-          "- 更新检查在无新版本时显示已是最新版",
+          "- 修复直播截获在压低原声模式下被静音检测误判，约 30 秒后自动退出的问题",
+          "- 静音自动停止默认关闭；需要时仍可手动选择 30 / 60 / 120 秒",
+          "- 截获链路异常中断时自动重连，最多尝试 3 次，直播监听不中断",
+          "",
+          "### 新增",
+          "- 文件管理器右键“打开方式”支持直接导入本地音频或视频",
+          "- 支持单实例：软件已打开时再次打开文件，会送入当前窗口",
+          "- 设置页/声音对象栏提供“注册到文件管理器打开方式”，写入当前用户设置，无需管理员权限",
+          "- 检查更新发现新版本时提供“打开下载页”按钮，并使用软件实际版本进行比较",
           "",
           "### 说明",
+          "- 便携版移动目录后，需要在设置中重新点击一次“注册到文件管理器打开方式”",
+          "- 更新检查会读取 GitHub Releases 列表，可识别预发布版本",
           "- 代码 MIT，测试音频 CC0",
           "- Android APK 仍暂停维护，移动端请使用网页版 / PWA",
         ].join("\n"),

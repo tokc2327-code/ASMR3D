@@ -543,6 +543,10 @@ input[type="file"]:disabled {
   margin-bottom: 8px;
 }
 
+.update-link {
+  text-decoration: none;
+}
+
 /* 图标按钮（播放/暂停/停止/±10 秒） */
 .btn-icon {
   width: 40px;

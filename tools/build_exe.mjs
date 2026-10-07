@@ -10,11 +10,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 process.env.ELECTRON_MIRROR ||= "https://npmmirror.com/mirrors/electron/";
 const DIST = path.join(ROOT, "dist");
-const MOBILE_BUILD = path.join(DIST, "asmr3d-v0.3-mobile");
+const MOBILE_BUILD = path.join(DIST, "asmr3d-v0.3.1-mobile");
 const STAGING = path.join(DIST, "electron-app");
 const PACKAGED_APP = path.join(DIST, "asmr3d-win32-x64");
-const FINAL_APP = path.join(DIST, "asmr3d-v0.3-win-x64");
-const ZIP_PATH = path.join(DIST, "asmr3d-v0.3-win-x64.zip");
+const FINAL_APP = path.join(DIST, "asmr3d-v0.3.1-win-x64");
+const ZIP_PATH = path.join(DIST, "asmr3d-v0.3.1-win-x64.zip");
 const ICON_PATH = path.join(ROOT, "renderer", "icon.ico");
 // Named "pwsh" so extraResource lands it at resources\pwsh (the path the app
 // looks for at runtime).
@@ -72,8 +72,8 @@ fs.writeFileSync(
     {
       name: "asmr3d-spatial-renderer",
       productName: "asmr3d空间渲染器",
-      version: "0.3.0",
-      description: "asmr3d空间渲染器 v0.3 公测版",
+      version: "0.3.1",
+      description: "asmr3d空间渲染器 v0.3.1 公测版",
       main: "main.cjs",
       author: "asmr3d",
       license: "UNLICENSED",
@@ -88,7 +88,7 @@ const paths = await packager({
   out: DIST,
   name: "asmr3d",
   executableName: "asmr3d空间渲染器",
-  appVersion: "0.3.0",
+  appVersion: "0.3.1",
   platform: "win32",
   arch: "x64",
   icon: ICON_PATH,

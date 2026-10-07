@@ -9,6 +9,7 @@ param(
     [string]$SetVolume = "",
     [switch]$GetVolume,
     [string]$RestoreVolumeOnExit = "",
+    [double]$AudibleThreshold = 0.0009,
     [int]$ParentProcessId = 0,
     [switch]$ListJson,
     [switch]$StreamToStdout
@@ -563,6 +564,23 @@ public static class ProcessAudioProbe
 
     public static Result Capture(int processId, int durationSeconds, Stream output, int silenceTimeoutSeconds, bool stopOnProcessExit)
     {
+        return Capture(
+            processId,
+            durationSeconds,
+            output,
+            silenceTimeoutSeconds,
+            stopOnProcessExit,
+            0.0009);
+    }
+
+    public static Result Capture(
+        int processId,
+        int durationSeconds,
+        Stream output,
+        int silenceTimeoutSeconds,
+        bool stopOnProcessExit,
+        double audibleThreshold)
+    {
         // ActivateAudioInterfaceAsync is only accepted from a multithreaded
         // apartment. Windows PowerShell 5.1 (.NET Framework) runs scripts on an
         // STA thread, so every capture runs on a dedicated MTA worker thread.
@@ -572,7 +590,13 @@ public static class ProcessAudioProbe
         {
             try
             {
-                result = CaptureCore(processId, durationSeconds, output, silenceTimeoutSeconds, stopOnProcessExit);
+                result = CaptureCore(
+                    processId,
+                    durationSeconds,
+                    output,
+                    silenceTimeoutSeconds,
+                    stopOnProcessExit,
+                    audibleThreshold);
             }
             catch (Exception exception)
             {
@@ -590,7 +614,13 @@ public static class ProcessAudioProbe
         return result;
     }
 
-    private static Result CaptureCore(int processId, int durationSeconds, Stream output, int silenceTimeoutSeconds, bool stopOnProcessExit)
+    private static Result CaptureCore(
+        int processId,
+        int durationSeconds,
+        Stream output,
+        int silenceTimeoutSeconds,
+        bool stopOnProcessExit,
+        double audibleThreshold)
     {
         const int channels = 2;
         const int sampleRate = 48000;
@@ -751,7 +781,7 @@ public static class ProcessAudioProbe
                             double value = block[index];
                             double absolute = Math.Abs(value);
                             if (absolute > result.Peak) result.Peak = absolute;
-                            if (absolute > 0.0009) audible = true;
+                            if (absolute > audibleThreshold) audible = true;
                             sumSquares += value * value;
                         }
                         if (audible) lastAudibleUtc = DateTime.UtcNow;
@@ -1028,7 +1058,7 @@ if ($StreamToStdout) {
     }
     try {
         $streamResult = [ProcessAudioProbe]::Capture(
-            $ProcessId, 0, $stdout, $SilenceTimeoutSeconds, $true)
+            $ProcessId, 0, $stdout, $SilenceTimeoutSeconds, $true, $AudibleThreshold)
         [Console]::Error.WriteLine("capture-reason: $($streamResult.StoppedReason)")
     } catch {
         [Console]::Error.WriteLine("capture-reason: failed")

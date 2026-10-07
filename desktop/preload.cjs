@@ -8,13 +8,20 @@ function subscribe(channel, handler) {
 
 contextBridge.exposeInMainWorld("asmr3dDesktop", {
   platform: process.platform,
-  version: "0.3.0",
+  version: "0.3.1",
   versions: {
     electron: process.versions.electron || "",
     chromium: process.versions.chrome || "",
     node: process.versions.node || "",
     v8: process.versions.v8 || "",
   },
+
+  consumeLaunchFile: () =>
+    ipcRenderer.invoke("asmr3d:consume-launch-file"),
+  onOpenLocalFile: (handler) =>
+    subscribe("asmr3d:open-local-file", handler),
+  registerFileAssociations: () =>
+    ipcRenderer.invoke("asmr3d:register-file-associations"),
 
   // Live capture (Windows process / system loopback)
   listLiveTargets: () => ipcRenderer.invoke("asmr3d:list-live-targets"),
@@ -29,6 +36,8 @@ contextBridge.exposeInMainWorld("asmr3dDesktop", {
     subscribe("asmr3d:live-audio-chunk", handler),
   onLiveCaptureEnded: (handler) =>
     subscribe("asmr3d:live-capture-ended", handler),
+  onLiveCaptureReconnecting: (handler) =>
+    subscribe("asmr3d:live-capture-reconnecting", handler),
 
   // Optional long recording
   defaultRecordingDirectory: () =>

@@ -218,7 +218,7 @@ function configuredDefaults() {
     convertBitDepth: "24",
     recordSegment: "600",
     recordBitDepth: "24",
-    silenceTimeout: "30",
+    silenceTimeout: "0",
   };
   return {
     ...fallback,
@@ -2075,6 +2075,50 @@ function selectMaterial(item) {
   setStatus(`已选择：${item.title}`, "idle");
 }
 
+function selectLocalSource(item) {
+  if (!item?.mediaUrl || !item?.title) return;
+  if (state.objectUrl) {
+    URL.revokeObjectURL(state.objectUrl);
+    state.objectUrl = null;
+  }
+  if (item.objectUrl) state.objectUrl = item.objectUrl;
+  state.activeSource = {
+    id: "local",
+    title: item.title,
+    file: item.title,
+    filePath: item.filePath || "",
+    category: "local-file",
+    mediaUrl: item.mediaUrl,
+    license: "用户本地文件",
+    sourceMetadata: {
+      channels: "未知",
+      sampleRate: "未知",
+    },
+    fileMetadata: {
+      decodedDuration: 0,
+    },
+  };
+  elements.sourceBadge.textContent = item.title;
+  elements.metaFile.textContent = item.title;
+  elements.metaCategory.textContent = "本地文件";
+  elements.metaChannels.textContent = "对象模式下混 / 兼容模式保留";
+  elements.metaSampleRate.textContent = "由浏览器重采样";
+  elements.metaDuration.textContent = "读取中";
+  elements.metaLicense.textContent = "用户本地文件";
+  if (state.audio) {
+    state.audio.src = item.mediaUrl;
+    state.audio.load();
+    state.audio.addEventListener(
+      "loadedmetadata",
+      () => {
+        elements.metaDuration.textContent = `${state.audio.duration.toFixed(1)} s`;
+      },
+      { once: true },
+    );
+  }
+  setStatus(`已选择本地文件：${item.title}`, "idle");
+}
+
 function loadMaterialList(items) {
   state.materialItems = items;
   elements.sampleSelect.replaceChildren();
@@ -2727,10 +2771,15 @@ async function startLiveCapture() {
     } else if (sourceMode === "attenuate") {
       handling = "unsupported";
     }
+    const captureAudibleThreshold =
+      sourceMode === "attenuate" && handling === "ok"
+        ? 0.0009 * SOURCE_ATTENUATION_VOLUME
+        : 0.0009;
 
     const result = await desktop.startLiveCapture({
       processId: target.processId,
       silenceTimeoutSeconds: Number(elements.liveSilenceSelect.value) || 0,
+      audibleThreshold: captureAudibleThreshold,
       restoreVolumeOnExit: previousVolume,
     });
     if (!result?.ok) {
@@ -3013,6 +3062,26 @@ function bindLiveControls() {
       stopLiveCapture(reason).catch((error) => setLiveStatus(error.message, "error"));
     });
   }
+  if (state.desktop?.onLiveCaptureReconnecting) {
+    state.desktop.onLiveCaptureReconnecting((payload) => {
+      if (!state.liveActive) return;
+      setLiveStatus(
+        `截获链路中断，正在重连 ${payload?.attempt || 1} / ${
+          payload?.maxAttempts || 3
+        }……`,
+        "running",
+      );
+    });
+  }
+  if (state.desktop?.onOpenLocalFile) {
+    state.desktop.onOpenLocalFile((file) => {
+      selectLocalSource({
+        title: file?.name,
+        mediaUrl: file?.url,
+        filePath: file?.path,
+      });
+    });
+  }
 
   if (state.desktop?.defaultRecordingDirectory) {
     state.desktop
@@ -3141,42 +3210,12 @@ function bindControls() {
   elements.fileInput.addEventListener("change", () => {
     const [file] = elements.fileInput.files;
     if (!file) return;
-    if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
-    state.objectUrl = URL.createObjectURL(file);
-    state.activeSource = {
-      id: "local",
+    const objectUrl = URL.createObjectURL(file);
+    selectLocalSource({
       title: file.name,
-      file: file.name,
-      category: "local-file",
-      mediaUrl: state.objectUrl,
-      license: "用户本地文件",
-      sourceMetadata: {
-        channels: "未知",
-        sampleRate: "未知",
-      },
-      fileMetadata: {
-        decodedDuration: 0,
-      },
-    };
-    elements.sourceBadge.textContent = file.name;
-    elements.metaFile.textContent = file.name;
-    elements.metaCategory.textContent = "本地文件";
-    elements.metaChannels.textContent = "对象模式下混 / 兼容模式保留";
-    elements.metaSampleRate.textContent = "由浏览器重采样";
-    elements.metaDuration.textContent = "读取中";
-    elements.metaLicense.textContent = "用户本地文件";
-    if (state.audio) {
-      state.audio.src = state.objectUrl;
-      state.audio.load();
-      state.audio.addEventListener(
-        "loadedmetadata",
-        () => {
-          elements.metaDuration.textContent = `${state.audio.duration.toFixed(1)} s`;
-        },
-        { once: true },
-      );
-    }
-    setStatus(`已选择本地文件：${file.name}`, "idle");
+      mediaUrl: objectUrl,
+      objectUrl,
+    });
   });
 
   for (const control of [
@@ -3236,6 +3275,20 @@ async function initialize() {
     console.error(error);
     loadMaterialList([]);
     setStatus("未连接素材服务，可上传本地音频文件。", "idle");
+  }
+  if (state.desktop?.consumeLaunchFile) {
+    try {
+      const launch = await state.desktop.consumeLaunchFile();
+      if (launch?.ok && launch.file) {
+        selectLocalSource({
+          title: launch.file.name,
+          mediaUrl: launch.file.url,
+          filePath: launch.file.path,
+        });
+      }
+    } catch (error) {
+      console.error(error);
+    }
   }
 }
 

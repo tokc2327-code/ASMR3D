@@ -2,7 +2,9 @@
   "use strict";
 
   const STORAGE_KEY = "asmr3d.settings.v1";
+  const SETTINGS_REVISION = 2;
   const DEFAULTS = {
+    revision: SETTINGS_REVISION,
     theme: "system",
     appearance: {
       backgroundVisibility: 80,
@@ -20,7 +22,7 @@
       convertBitDepth: "24",
       recordSegment: "600",
       recordBitDepth: "24",
-      silenceTimeout: "30",
+      silenceTimeout: "0",
     },
   };
 
@@ -52,7 +54,15 @@
 
   function read() {
     try {
-      return merge(DEFAULTS, JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"));
+      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") || {};
+      if (stored.revision !== SETTINGS_REVISION && stored.defaults) {
+        stored.defaults = {
+          ...stored.defaults,
+          silenceTimeout: DEFAULTS.defaults.silenceTimeout,
+        };
+      }
+      stored.revision = SETTINGS_REVISION;
+      return merge(DEFAULTS, stored);
     } catch {
       return clone(DEFAULTS);
     }
@@ -101,7 +111,7 @@
   }
 
   function update(patch) {
-    const next = merge(read(), patch);
+    const next = merge(read(), { ...patch, revision: SETTINGS_REVISION });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     apply(next, { notify: true });
     return next;

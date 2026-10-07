@@ -1,8 +1,8 @@
 // Rewrites the version everywhere in one shot.
 //
-//   node tools/bump_version.mjs 0.3.0
-//   node tools/bump_version.mjs 0.3.0 公测版 v0.3-beta
-//   node tools/bump_version.mjs 0.3.0 --dry-run
+//   node tools/bump_version.mjs 0.3.1
+//   node tools/bump_version.mjs 0.3.1 公测版 v0.3.1-beta
+//   node tools/bump_version.mjs 0.3.1 --dry-run
 //
 // The label defaults to 公测版 and the release tag to v<major.minor>-beta.
 
@@ -24,8 +24,12 @@ const oldVersion = JSON.parse(
   fs.readFileSync(path.join(ROOT, "package.json"), "utf8"),
 ).version;
 const short = (v) => `v${v.split(".").slice(0, 2).join(".")}`;
+const artifactVersion = (v) =>
+  `v${v.endsWith(".0") ? v.split(".").slice(0, 2).join(".") : v}`;
 const oldShort = short(oldVersion);
 const newShort = short(newVersion);
+const oldArtifact = artifactVersion(oldVersion);
+const newArtifact = artifactVersion(newVersion);
 const newTag = newTagArg || `${newShort}-beta`;
 
 const currentLabel = (() => {
@@ -66,8 +70,9 @@ const FILES = [
 
 // Order matters: replace the most specific strings first.
 const replacements = [
-  [`${oldShort} ${currentLabel}`, `${newShort} ${newLabel}`],
-  [`${oldShort}${currentLabel}`, `${newShort}${newLabel}`],
+  [`${oldArtifact} ${currentLabel}`, `${newArtifact} ${newLabel}`],
+  [`${oldArtifact}${currentLabel}`, `${newArtifact}${newLabel}`],
+  [`asmr3d-${oldArtifact}`, `asmr3d-${newArtifact}`],
   [oldTag, newTag],
   [`${oldShort}-`, `${newShort}-`],
   [`release ${oldShort}`, `release ${newShort}`],
