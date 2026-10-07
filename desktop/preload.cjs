@@ -8,7 +8,7 @@ function subscribe(channel, handler) {
 
 contextBridge.exposeInMainWorld("asmr3dDesktop", {
   platform: process.platform,
-  version: "0.2.0",
+  version: "0.3.0",
   versions: {
     electron: process.versions.electron || "",
     chromium: process.versions.chrome || "",

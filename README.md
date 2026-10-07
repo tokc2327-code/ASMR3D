@@ -5,7 +5,7 @@
 当前版本：
 
 ```text
-v0.2 公测版
+v0.3 公测版
 ```
 
 ## 当前开发优先级
@@ -99,8 +99,8 @@ npm run build:mobile
 输出：
 
 ```text
-dist/asmr3d-v0.2-mobile/
-dist/asmr3d-v0.2-mobile.zip
+dist/asmr3d-v0.3-mobile/
+dist/asmr3d-v0.3-mobile.zip
 ```
 
 ## 构建 Android APK
@@ -131,8 +131,8 @@ npm run exe:release
 输出：
 
 ```text
-dist/asmr3d-v0.2-win-x64/asmr3d空间渲染器.exe
-dist/asmr3d-v0.2-win-x64.zip
+dist/asmr3d-v0.3-win-x64/asmr3d空间渲染器.exe
+dist/asmr3d-v0.3-win-x64.zip
 ```
 
 ## 素材许可

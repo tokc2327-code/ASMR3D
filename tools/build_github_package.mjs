@@ -8,10 +8,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const DIST = path.join(ROOT, "dist");
 const GITHUB_ROOT = path.join(DIST, "github-package");
-const SOURCE_DIR = path.join(GITHUB_ROOT, "asmr3d-v0.2-source");
-const SOURCE_ZIP = path.join(DIST, "asmr3d-v0.2-github-source.zip");
+const SOURCE_DIR = path.join(GITHUB_ROOT, "asmr3d-v0.3-source");
+const SOURCE_ZIP = path.join(DIST, "asmr3d-v0.3-github-source.zip");
 const RELEASE_DIR = path.join(GITHUB_ROOT, "release-assets");
-const RELEASE_ZIP = path.join(DIST, "asmr3d-v0.2-release-assets.zip");
+const RELEASE_ZIP = path.join(DIST, "asmr3d-v0.3-release-assets.zip");
 
 const ignored = [
   "node_modules",
@@ -83,6 +83,8 @@ for (const directory of [
   "desktop",
   "docs",
   "wiki",
+  "design",
+  "obsidian",
   "tools",
   "materials",
   "android",
@@ -95,10 +97,15 @@ for (const [source, destination] of [
   ["ANDROID_INSTALL.md", "docs/ANDROID_INSTALL.md"],
   ["WINDOWS_INSTALL.md", "docs/WINDOWS_INSTALL.md"],
 ]) {
+  const from = path.join(DIST, source);
+  if (!fs.existsSync(from)) {
+    console.warn(`跳过不存在的文档: ${source}`);
+    continue;
+  }
   fs.mkdirSync(path.dirname(path.join(SOURCE_DIR, destination)), {
     recursive: true,
   });
-  fs.copyFileSync(path.join(DIST, source), path.join(SOURCE_DIR, destination));
+  fs.copyFileSync(from, path.join(SOURCE_DIR, destination));
 }
 
 fs.rmSync(SOURCE_ZIP, { force: true });
@@ -108,8 +115,8 @@ execFileSync("tar.exe", ["-a", "-c", "-f", SOURCE_ZIP, "-C", SOURCE_DIR, "."], {
 
 fs.mkdirSync(RELEASE_DIR, { recursive: true });
 for (const file of [
-  "asmr3d-v0.2-win-x64.zip",
-  "asmr3d-v0.2-mobile.zip",
+  "asmr3d-v0.3-win-x64.zip",
+  "asmr3d-v0.3-mobile.zip",
   "WINDOWS_INSTALL.md",
 ]) {
   const from = path.join(DIST, file);
@@ -121,7 +128,7 @@ for (const file of [
 }
 
 // 为随包发布的压缩包补一份 SHA-256（Windows 版自带 PowerShell，体积大，值得校验）。
-for (const name of ["asmr3d-v0.2-win-x64.zip", "asmr3d-v0.2-mobile.zip"]) {
+for (const name of ["asmr3d-v0.3-win-x64.zip", "asmr3d-v0.3-mobile.zip"]) {
   const target = path.join(RELEASE_DIR, name);
   if (!fs.existsSync(target)) continue;
   const hash = createHash("sha256")

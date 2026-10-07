@@ -670,28 +670,47 @@
     el.updateHint.textContent = "正在连接 GitHub…";
     try {
       const response = await fetch(
-        "https://api.github.com/repos/tokc2327-code/ASMR3D/releases/latest",
+        "https://api.github.com/repos/tokc2327-code/ASMR3D/releases?per_page=20",
         {
           headers: { Accept: "application/vnd.github+json" },
           cache: "no-store",
         },
       );
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const release = await response.json();
-      const tag = String(release.tag_name || "");
-      const latest = tag.replace(/^v/, "");
-      const isCurrent =
-        tag === "v0.2-beta" ||
-        latest === "0.2.0" ||
-        latest.startsWith("0.2.");
-      el.updateHint.textContent =
-        latest && !isCurrent
-          ? `发现新版本 ${tag}，可在 GitHub Releases 查看。`
-          : "当前已是最新版本（v0.2.0）。";
+      const releases = await response.json();
+      const currentVersion = [0, 3, 0];
+      const parseVersion = (tag) => {
+        const match = /^v?(\d+)\.(\d+)(?:\.(\d+))?/.exec(String(tag || ""));
+        return match
+          ? [Number(match[1]), Number(match[2]), Number(match[3] || 0)]
+          : null;
+      };
+      const compareVersion = (left, right) => {
+        for (let index = 0; index < 3; index += 1) {
+          if (left[index] !== right[index]) return left[index] - right[index];
+        }
+        return 0;
+      };
+      const latestRelease = releases
+        .filter((release) => !release?.draft)
+        .map((release) => ({
+          tag: String(release?.tag_name || ""),
+          version: parseVersion(release?.tag_name),
+        }))
+        .filter((release) => release.tag && release.version)
+        .sort((left, right) => compareVersion(right.version, left.version))[0];
+      if (
+        latestRelease &&
+        compareVersion(latestRelease.version, currentVersion) > 0
+      ) {
+        el.updateHint.textContent = `发现新版本 ${latestRelease.tag}，可在 GitHub Releases 查看。`;
+      } else {
+        el.updateHint.textContent = "当前已是最新版本（v0.3.0）。";
+      }
     } catch {
       el.updateHint.textContent =
         navigator.onLine
-          ? "当前已是最新版（未检测到更高版本）。"
+          ? "检查更新暂时失败，请稍后重试；当前版本 v0.3.0。"
           : "检查更新需要联网，并会读取 GitHub Release 信息。";
     }
   });

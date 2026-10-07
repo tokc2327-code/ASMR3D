@@ -1,7 +1,7 @@
 {
   "appId": "com.asmr3d.renderer",
   "appName": "asmr3d空间渲染器",
-  "webDir": "dist/asmr3d-v0.2-mobile",
+  "webDir": "dist/asmr3d-v0.3-mobile",
   "server": {
     "androidScheme": "https"
   }

@@ -8,7 +8,7 @@ const SOURCE_DIR = path.join(
   ROOT,
   "dist",
   "github-package",
-  "asmr3d-v0.2-source",
+  "asmr3d-v0.3-source",
 );
 const RELEASE_DIR = path.join(
   ROOT,
@@ -166,7 +166,7 @@ async function uploadSource() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      message: process.env.ASMR3D_COMMIT_MSG || "Release v0.2 公测版",
+      message: process.env.ASMR3D_COMMIT_MSG || "Release v0.3 公测版",
       tree: tree.sha,
       parents: currentCommit ? [currentCommit.sha] : [],
     }),
@@ -218,7 +218,7 @@ async function updateRepositoryMetadata() {
 
 async function getOrCreateRelease() {
   try {
-    return await github(`/repos/${OWNER}/${REPO}/releases/tags/v0.2-beta`);
+    return await github(`/repos/${OWNER}/${REPO}/releases/tags/v0.3-beta`);
   } catch (error) {
     if (!String(error.message).includes("404")) throw error;
   }
@@ -226,28 +226,38 @@ async function getOrCreateRelease() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      tag_name: "v0.2-beta",
+      tag_name: "v0.3-beta",
       target_commitish: "main",
-      name: "asmr3d空间渲染器 v0.2 公测版",
+      name: "asmr3d空间渲染器 v0.3 公测版",
       body:
         [
-          "## v0.2 公测版",
+          "## v0.3 公测版",
           "",
           "### 新增",
-          "- 直播截获：按应用进程回环实时取流，只抓取所选应用",
-          "- 同步录制：分段持续写盘，直播结束后校验并合并为整段 24-bit WAV",
-          "- 视频转音频：本地抽取音轨转 WAV（不依赖 ffmpeg，63 分钟视频约 15 秒）",
-          "- 空间参数模板：TXT 导入 / 导出，导入即套用",
-          "- 统一输出文件夹：所有成品写入 EXE 同级的 `输出` 目录",
+          "- 设置面板：跟随系统 / 浅色 / 深色主题，背景图显隐、模糊和面板透明度",
+          "- 默认参数：可配置渲染方式、空间参数、导出位深和录制默认值",
+          "- 关于页面：开发者、邮箱、GitHub、MIT、Electron / Chromium / Node / V8 信息",
+          "- 检查更新：读取 GitHub Release，并在按钮下方提示联网状态和检查结果",
+          "- 导出时长：30 秒 / 2 分钟 / 5 分钟 / 自定义",
+          "- 快速导出：缩短卷积混响尾音，降低长文件离线渲染耗时",
+          "- 导出阶段计时：显示读取、解码、渲染、编码和写盘耗时",
           "",
           "### 变更",
-          "- Windows 便携版**内置精简版 PowerShell 7.6.6**，直播截获开箱可用，无需另装",
-          "- 移除系统输出回环采集（会把自身输出抓回去产生自激啸叫）",
-          "- 界面改为粉色主题，可直接导入本地视频/音频",
+          "- 播放/暂停合并，新增回到开头按钮",
+          "- 原声压低从 −40 dB 改为 −60 dB，补偿上限提高到 +66 dB",
+          "- 增加近距离空间保护，避免 0.2–0.4 m 出现空耳感",
+          "- 视频转音频使用独立转换进度区",
+          "- 文件选择改为整个输入框可点击，移除原生选择文件小按钮",
+          "",
+          "### 修复",
+          "- 修复暂停后继续播放会重置进度",
+          "- 修复浅色/深色模式下拉选项和播放图标对比度",
+          "- 修复视频转换和录制选项在浅色模式下不可读",
+          "- 更新检查在无新版本时显示已是最新版",
           "",
           "### 说明",
-          "- 本版未重新构建 Android APK（移动端请使用网页版 / PWA 包）",
           "- 代码 MIT，测试音频 CC0",
+          "- Android APK 仍暂停维护，移动端请使用网页版 / PWA",
         ].join("\n"),
       draft: false,
       prerelease: true,
@@ -311,7 +321,11 @@ async function uploadReleaseAssets(release) {
   }
 }
 
-await uploadSource();
+if (process.env.ASMR3D_SKIP_SOURCE_UPLOAD === "1") {
+  console.log("跳过 API 源码覆盖；使用 git push 保留提交历史。");
+} else {
+  await uploadSource();
+}
 await updateRepositoryMetadata();
 const release = await getOrCreateRelease();
 await uploadReleaseAssets(release);

@@ -402,7 +402,7 @@ function createWindow() {
     minHeight: 700,
     show: false,
     backgroundColor: "#111416",
-    title: "asmr3d空间渲染器 v0.2公测版",
+    title: "asmr3d空间渲染器 v0.3公测版",
     icon: path.join(__dirname, "icon.ico"),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
