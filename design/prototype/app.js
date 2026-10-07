@@ -39,6 +39,8 @@ const elements = {
   exportScopeSelect: $("#exportScopeSelect"),
   exportStartSelect: $("#exportStartSelect"),
   exportDurationSelect: $("#exportDurationSelect"),
+  exportCustomDurationField: $("#exportCustomDurationField"),
+  exportCustomDuration: $("#exportCustomDuration"),
   exportBitDepth: $("#exportBitDepth"),
   exportButton: $("#exportButton"),
   cancelExportButton: $("#cancelExportButton"),
@@ -546,6 +548,7 @@ function setExportControlsDisabled(disabled) {
     elements.exportScopeSelect,
     elements.exportStartSelect,
     elements.exportDurationSelect,
+    elements.exportCustomDuration,
     elements.exportBitDepth,
   ]) {
     control.disabled = disabled;
@@ -559,7 +562,16 @@ function setExportControlsDisabled(disabled) {
     const fullExport = elements.exportScopeSelect.value === "full";
     elements.exportStartSelect.disabled = fullExport;
     elements.exportDurationSelect.disabled = fullExport;
+    elements.exportCustomDuration.disabled =
+      fullExport || elements.exportDurationSelect.value !== "custom";
   }
+}
+
+function syncExportDurationCustom() {
+  const custom = elements.exportDurationSelect.value === "custom";
+  const fullExport = elements.exportScopeSelect.value === "full";
+  elements.exportCustomDurationField.hidden = !custom;
+  elements.exportCustomDuration.disabled = !custom || fullExport;
 }
 
 function updateExportScopeControls() {
@@ -568,6 +580,7 @@ function updateExportScopeControls() {
     elements.exportStartSelect.disabled = fullExport;
     elements.exportDurationSelect.disabled = fullExport;
   }
+  syncExportDurationCustom();
   elements.exportStatus.textContent = fullExport
     ? "完整离线渲染，耗时取决于文件长度和 CPU，可在后台运行。"
     : "实时捕获指定片段，导出耗时与片段长度相同。";
@@ -891,7 +904,13 @@ async function startSegmentExport() {
   const parameters = currentParameters();
   const startAt =
     elements.exportStartSelect.value === "zero" ? 0 : state.audio.currentTime;
-  const requestedDuration = Number(elements.exportDurationSelect.value);
+  const requestedDuration =
+    elements.exportDurationSelect.value === "custom"
+      ? Math.min(
+          3600,
+          Math.max(1, Number(elements.exportCustomDuration.value) || 30),
+        )
+      : Number(elements.exportDurationSelect.value);
   const duration = Math.min(
     requestedDuration,
     Math.max(0, state.audio.duration - startAt),
@@ -3015,6 +3034,7 @@ function bindControls() {
   });
   elements.cancelExportButton.addEventListener("click", () => finishExport(true));
   elements.exportScopeSelect.addEventListener("change", updateExportScopeControls);
+  elements.exportDurationSelect.addEventListener("change", syncExportDurationCustom);
 
   elements.loopToggle.addEventListener("change", () => {
     if (state.audio) state.audio.loop = elements.loopToggle.checked;
