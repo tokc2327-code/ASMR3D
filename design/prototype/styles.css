@@ -1875,3 +1875,87 @@ body[data-dragging] #convertSection {
 :root[data-theme="light"] ::-webkit-scrollbar-thumb {
   background-color: rgba(43, 52, 68, 0.2);
 }
+
+/* 验收修正：模式对比度、播放状态、背景默认可见度和关于页 */
+.mode-grid button {
+  background: rgba(31, 36, 49, 0.84);
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+.mode-grid button:hover {
+  background: rgba(44, 50, 67, 0.96);
+}
+
+.mode-grid button.active {
+  border-color: var(--pink-400);
+  background: rgba(240, 96, 156, 0.22);
+  color: var(--pink-300);
+}
+
+.mode-grid button.active .mode-dot {
+  border-color: var(--pink-300);
+  background: var(--pink-300);
+}
+
+.transport .btn {
+  min-height: 36px;
+  border-color: var(--line-strong);
+  background: rgba(32, 37, 51, 0.92);
+  color: var(--text-1);
+}
+
+.transport .btn-icon {
+  width: 46px;
+}
+
+.transport .icon {
+  stroke-width: 2.5;
+}
+
+#playButton .icon {
+  fill: currentColor;
+}
+
+body[data-transport="playing"] #playButton {
+  color: var(--on-pink);
+}
+
+.transport .btn:disabled {
+  opacity: 0.66;
+  filter: none;
+}
+
+.transport-status {
+  min-height: 18px;
+  margin: 5px 0 3px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+:root[data-theme="light"] .mode-grid button {
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--text-1);
+}
+
+:root[data-theme="light"] .mode-grid button:hover {
+  background: #fff;
+}
+
+:root[data-theme="light"] .mode-grid button.active {
+  background: rgba(217, 79, 136, 0.14);
+  color: var(--pink-500);
+}
+
+:root[data-theme="light"] .transport .btn {
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--text-1);
+}
+
+#checkUpdateButton {
+  margin-top: 12px;
+}
+
+#updateHint {
+  margin-top: 6px;
+}

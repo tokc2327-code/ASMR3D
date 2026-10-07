@@ -17,7 +17,7 @@ node design/prototype/dev-server.mjs
 
 | 文件 | 说明 |
 |---|---|
-| `index.html` | 新版结构。保留 app.js 依赖的全部 81 个 ID 与 `data-mode` / `.method-list` / `[data-state]` 契约 |
+| `index.html` | 新版结构。保留 app.js 依赖的全部 82 个 ID 与 `data-mode` / `.method-list` / `[data-state]` 契约 |
 | `styles.css` | 设计系统（令牌见文件头注释与 `design/REDESIGN.md` 第 3 节） |
 | `enhance.js` | 附加层：Toast、快捷键（空格/←→）、徽章语义色、滑杆填充同步、读数精确输入、双击单项复位、Shift+方向 ×10、方法抽屉、拖放导入、无源时禁用暂停/停止。**可整体删除不影响功能** |
 | `settings.js` | 设置层：主题、背景显隐/模糊、面板透明度、默认参数持久化；必须在 `app.js` 前加载 |

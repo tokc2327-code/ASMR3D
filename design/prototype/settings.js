@@ -5,8 +5,9 @@
   const DEFAULTS = {
     theme: "system",
     appearance: {
-      backgroundVisibility: 40,
+      backgroundVisibility: 80,
       backgroundBlur: 3,
+      overlayStrength: 55,
       panelOpacity: 92,
     },
     defaults: {
@@ -82,7 +83,12 @@
     );
     root.style.setProperty(
       "--bg-blur",
-      `${Math.min(12, Math.max(0, Number(appearance.backgroundBlur) || 0))}px`,
+      `${Math.min(20, Math.max(0, Number(appearance.backgroundBlur) || 0))}px`,
+    );
+    const overlay = Math.min(1, Math.max(0, Number(appearance.overlayStrength) / 100));
+    root.style.setProperty(
+      "--page-overlay",
+      `rgba(${isLight ? "246, 248, 251" : "7, 9, 13"}, ${overlay})`,
     );
     root.style.setProperty("--surface", `rgba(${base}, ${alpha})`);
     root.style.setProperty("--surface-2", `rgba(${base2}, ${Math.min(1, alpha + 0.04)})`);

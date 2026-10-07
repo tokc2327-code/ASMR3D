@@ -46,6 +46,9 @@
     settingsReset: $("settingsReset"),
     settingsApplyDefaults: $("settingsApplyDefaults"),
     infoPopover: $("infoPopover"),
+    aboutRuntime: $("aboutRuntime"),
+    checkUpdateButton: $("checkUpdateButton"),
+    updateHint: $("updateHint"),
     methodsToggle: $("methodsToggle"),
     methodDrawer: $("methodDrawer"),
     methodCloseBtn: $("methodCloseBtn"),
@@ -435,6 +438,7 @@
   const settingFields = {
     theme: $("settingsTheme"),
     backgroundVisibility: $("settingsBackgroundVisibility"),
+    overlayStrength: $("settingsOverlayStrength"),
     backgroundBlur: $("settingsBackgroundBlur"),
     panelOpacity: $("settingsPanelOpacity"),
     defaultMode: $("settingsDefaultMode"),
@@ -450,6 +454,7 @@
   };
   const settingOutputs = {
     backgroundVisibility: $("settingsBackgroundVisibilityValue"),
+    overlayStrength: $("settingsOverlayStrengthValue"),
     backgroundBlur: $("settingsBackgroundBlurValue"),
     panelOpacity: $("settingsPanelOpacityValue"),
   };
@@ -460,6 +465,7 @@
       appearance: {
         backgroundVisibility: Number(settingFields.backgroundVisibility.value),
         backgroundBlur: Number(settingFields.backgroundBlur.value),
+        overlayStrength: Number(settingFields.overlayStrength.value),
         panelOpacity: Number(settingFields.panelOpacity.value),
       },
       defaults: {
@@ -483,8 +489,10 @@
     settingFields.theme.value = value.theme;
     settingFields.backgroundVisibility.value = value.appearance.backgroundVisibility;
     settingFields.backgroundBlur.value = value.appearance.backgroundBlur;
+    settingFields.overlayStrength.value = value.appearance.overlayStrength;
     settingFields.panelOpacity.value = value.appearance.panelOpacity;
     settingOutputs.backgroundVisibility.value = `${value.appearance.backgroundVisibility}%`;
+    settingOutputs.overlayStrength.value = `${value.appearance.overlayStrength}%`;
     settingOutputs.backgroundBlur.value = `${value.appearance.backgroundBlur}px`;
     settingOutputs.panelOpacity.value = `${value.appearance.panelOpacity}%`;
     settingFields.defaultMode.value = value.defaults.mode;
@@ -568,7 +576,7 @@
 
   const infoItems = [
     { selector: "#sourceSection", title: "声音对象", text: "选择内置素材或导入本地音频/视频。对象模式会将单声道对象送入 HRTF，双耳兼容模式保留原始左右声道。" },
-    { selector: "#modeControl", title: "渲染方式", target: "modeNote", text: "双耳兼容适合 KU100 和普通双耳成品；浏览器 HRTF 适合快速试听；参数化 HRTF 便于观察 ILD、ITD 和头部阴影；Bypass 用于 A/B 对照。" },
+    { selector: "#modeControl", title: "渲染方式", modeInfo: true, text: "双耳兼容适合 KU100 和普通双耳成品；浏览器 HRTF 适合快速试听；参数化 HRTF 便于观察 ILD、ITD 和头部阴影；Bypass 用于 A/B 对照。" },
     { selector: "#parameterSection", title: "空间参数", text: "方位角、仰角、距离和音量同时作用于本地播放与直播截获。点击数值可精确输入，单项复位图标可恢复默认值。" },
     { selector: "#templateSection", title: "参数模板", text: "导入 TXT 后立即套用方位角、仰角、距离、音量和渲染方式；直播截获进行中也可以导入模板，结果会进入同步录制。" },
     { selector: "#telemetrySection", title: "空间参数读数", text: "显示距离增益、ILD、ITD、空气吸收、近场提升和设备基础延时，用于观察当前参数组合的实际变化。" },
@@ -585,11 +593,18 @@
 
   function showInfo(button, item) {
     if (!el.infoPopover) return;
+    const activeMode = document.querySelector("#modeControl button.active")?.dataset.mode;
+    const modeText = {
+      binaural: "保留原始左右声道，只做整体声场移动、高度音色、距离与混响处理，适合 KU100、假人头和普通双耳成品。",
+      hrtf: "将输入下混为单声道对象，使用浏览器内建 HRIR 进行定位，适合快速主观试听。",
+      parametric: "用 ILD、ITD、头部阴影和仰角耳廓滤波近似 HRTF，适合观察各条空间线索。",
+      bypass: "跳过全部空间处理，只保留输出音量和限幅，用于 A/B 对照。",
+    }[activeMode];
     const target = item.target ? $(item.target) : null;
     el.infoPopover.innerHTML = "<strong></strong><p></p>";
     el.infoPopover.querySelector("strong").textContent = item.title;
     el.infoPopover.querySelector("p").textContent =
-      target?.textContent?.trim() || item.text;
+      (item.modeInfo ? modeText : target?.textContent?.trim()) || item.text;
     el.infoPopover.hidden = false;
     const rect = button.getBoundingClientRect();
     const width = Math.min(320, window.innerWidth - 24);
@@ -638,6 +653,32 @@
 
   settings?.subscribe(syncSettingsUI);
   syncSettingsUI();
+
+  if (el.aboutRuntime) {
+    const chromium = /Chromium\/([\d.]+)/.exec(navigator.userAgent)?.[1] || "未知";
+    const electron = window.asmr3dDesktop?.version || "开发环境";
+    el.aboutRuntime.textContent = `Electron ${electron} · Chromium ${chromium}`;
+  }
+
+  el.checkUpdateButton?.addEventListener("click", async () => {
+    el.updateHint.textContent = "正在连接 GitHub…";
+    try {
+      const response = await fetch(
+        "https://api.github.com/repos/tokc2327-code/ASMR3D/releases/latest",
+        { headers: { Accept: "application/vnd.github+json" } },
+      );
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const release = await response.json();
+      const latest = String(release.tag_name || "").replace(/^v/, "");
+      el.updateHint.textContent =
+        latest && latest !== "0.2.0"
+          ? `发现新版本 ${release.tag_name}，可在 GitHub Releases 查看。`
+          : "当前已是最新版本（v0.2.0）。";
+    } catch {
+      el.updateHint.textContent =
+        "检查失败：需要联网并能够访问 GitHub API，也可以手动打开 GitHub Releases 查看。";
+    }
+  });
 
   /* ---------- 12. 拖放导入 ---------- */
 

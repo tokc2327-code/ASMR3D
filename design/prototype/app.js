@@ -33,6 +33,7 @@ const elements = {
   totalTime: $("#totalTime"),
   progressPercent: $("#progressPercent"),
   progressHint: $("#progressHint"),
+  transportStatus: $("#transportStatus"),
   skipBackButton: $("#skipBackButton"),
   skipForwardButton: $("#skipForwardButton"),
   exportScopeSelect: $("#exportScopeSelect"),
@@ -1947,6 +1948,10 @@ function setStatus(message, stateName = "idle") {
   }`;
 }
 
+function setTransportStatus(message) {
+  if (elements.transportStatus) elements.transportStatus.textContent = message;
+}
+
 function selectMaterial(item) {
   state.activeSource = item;
   if (state.objectUrl) {
@@ -2038,7 +2043,7 @@ async function togglePlayback() {
     elements.metaDuration.textContent = `${state.audio.duration.toFixed(1)} s`;
   }
   updateProgressUI();
-  setStatus("正在播放空间化对象。", "running");
+  setTransportStatus("正在播放空间化对象。");
   const latency =
     (state.audioContext.baseLatency || 0) + (state.audioContext.outputLatency || 0);
   elements.audioStatus.textContent = `AudioContext：${state.audioContext.state} · ${
@@ -2935,7 +2940,7 @@ function bindControls() {
   elements.pauseButton.addEventListener("click", () => {
     if (!state.audio) return;
     state.audio.pause();
-    setStatus("已暂停。", "idle");
+    setTransportStatus("已暂停，播放位置已保留。");
   });
 
   elements.stopButton.addEventListener("click", () => {
@@ -2944,7 +2949,7 @@ function bindControls() {
     // Use the progress slider (or 后退 10 秒) to go back.
     state.audio.pause();
     updateProgressUI({ enabled: true });
-    setStatus("已停止播放，播放位置已保留。", "idle");
+    setTransportStatus("已停止播放，播放位置已保留。");
   });
 
   elements.progressRange.addEventListener("pointerdown", () => {
