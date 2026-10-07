@@ -106,6 +106,11 @@ body::after {
   --page-overlay: rgba(7, 9, 13, 0.62);
 }
 
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] option {
+  color-scheme: dark;
+}
+
 :root[data-theme="light"] {
   color-scheme: light;
   --page-overlay: rgba(246, 248, 251, 0.76);
@@ -132,6 +137,11 @@ body::after {
   --info-soft: rgba(45, 105, 199, 0.1);
   --info-line: rgba(45, 105, 199, 0.34);
   --shadow-pop: 0 10px 36px rgba(35, 45, 65, 0.18);
+}
+
+:root[data-theme="light"] select,
+:root[data-theme="light"] option {
+  color-scheme: light;
 }
 
 h1,
@@ -1958,4 +1968,49 @@ body[data-transport="playing"] #playButton {
 
 #updateHint {
   margin-top: 6px;
+}
+
+/* 下拉列表在浅色和深色模式下都保持高对比。 */
+select option {
+  background: #141824;
+  color: #eef1f8;
+}
+
+:root[data-theme="light"] select option {
+  background: #ffffff;
+  color: #1d2430;
+}
+
+/* 播放和导出主按钮始终使用高对比文字/图标。 */
+#playButton {
+  color: var(--on-pink);
+}
+
+#playButton .icon {
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+#pauseButton:not(:disabled) .icon,
+#stopButton:not(:disabled) .icon {
+  color: var(--text-1);
+  stroke: var(--text-1);
+}
+
+:root[data-theme="light"] .btn-primary,
+:root[data-theme="light"] #exportButton {
+  color: #fff8fb;
+  background: var(--pink-500);
+}
+
+:root[data-theme="dark"] .btn-primary,
+:root[data-theme="dark"] #exportButton {
+  color: var(--on-pink);
+  background: var(--pink-500);
+}
+
+#exportButton:disabled {
+  opacity: 0.62;
+  color: #fff;
+  filter: none;
 }

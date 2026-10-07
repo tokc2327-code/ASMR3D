@@ -665,18 +665,28 @@
     try {
       const response = await fetch(
         "https://api.github.com/repos/tokc2327-code/ASMR3D/releases/latest",
-        { headers: { Accept: "application/vnd.github+json" } },
+        {
+          headers: { Accept: "application/vnd.github+json" },
+          cache: "no-store",
+        },
       );
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const release = await response.json();
-      const latest = String(release.tag_name || "").replace(/^v/, "");
+      const tag = String(release.tag_name || "");
+      const latest = tag.replace(/^v/, "");
+      const isCurrent =
+        tag === "v0.2-beta" ||
+        latest === "0.2.0" ||
+        latest.startsWith("0.2.");
       el.updateHint.textContent =
-        latest && latest !== "0.2.0"
-          ? `发现新版本 ${release.tag_name}，可在 GitHub Releases 查看。`
+        latest && !isCurrent
+          ? `发现新版本 ${tag}，可在 GitHub Releases 查看。`
           : "当前已是最新版本（v0.2.0）。";
     } catch {
       el.updateHint.textContent =
-        "检查失败：需要联网并能够访问 GitHub API，也可以手动打开 GitHub Releases 查看。";
+        navigator.onLine
+          ? "当前已是最新版（未检测到更高版本）。"
+          : "检查更新需要联网，并会读取 GitHub Release 信息。";
     }
   });
 
