@@ -6,6 +6,7 @@ const elements = {
   playButton: $("#playButton"),
   pauseButton: $("#pauseButton"),
   stopButton: $("#stopButton"),
+  resetPlaybackButton: $("#resetPlaybackButton"),
   loopToggle: $("#loopToggle"),
   azimuth: $("#azimuth"),
   azimuthOutput: $("#azimuthOutput"),
@@ -42,6 +43,7 @@ const elements = {
   exportCustomDurationField: $("#exportCustomDurationField"),
   exportCustomDuration: $("#exportCustomDuration"),
   exportBitDepth: $("#exportBitDepth"),
+  exportQuality: $("#exportQuality"),
   exportButton: $("#exportButton"),
   cancelExportButton: $("#cancelExportButton"),
   exportProgress: $("#exportProgress"),
@@ -340,7 +342,10 @@ async function startSegmentedOfflineExport({
   parameters,
   bitDepth,
   durationSeconds,
+  quality = "precise",
 }) {
+  const timing = { read: 0, decode: 0, render: 0, encode: 0, save: 0 };
+  const readStartedAt = performance.now();
   const mediaUrl = state.activeSource.mediaUrl;
   elements.exportStatus.textContent = "正在读取完整源文件……";
   await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -348,6 +353,7 @@ async function startSegmentedOfflineExport({
   const response = await fetch(mediaUrl);
   if (!response.ok) throw new Error(`源文件读取失败：${response.status}`);
   const bytes = new Uint8Array(await response.arrayBuffer());
+  timing.read = performance.now() - readStartedAt;
 
   // 预估段长：优先用已知时长换算，拿不到时长就按最低码率保守取。
   const bytesPerSecond =
@@ -383,9 +389,11 @@ async function startSegmentedOfflineExport({
     const sliceStart = start === 0 ? 0 : alignToFrameStart(bytes, start);
     let decoded = null;
     try {
+      const decodeStartedAt = performance.now();
       decoded = await state.audioContext.decodeAudioData(
         bytes.slice(sliceStart, end).buffer,
       );
+      timing.decode += performance.now() - decodeStartedAt;
     } catch (error) {
       // 单段仍然太大就一分为二继续试；到最小粒度还失败才算真的失败。
       if (end - start <= MIN_SEGMENT_BYTES) {
@@ -404,14 +412,18 @@ async function startSegmentedOfflineExport({
       decoded.length,
       decoded.sampleRate,
     );
-    buildOfflineGraph(offlineContext, decoded, parameters);
+    buildOfflineGraph(offlineContext, decoded, parameters, quality);
+    const renderStartedAt = performance.now();
     const rendered = await offlineContext.startRendering();
+    timing.render += performance.now() - renderStartedAt;
+    const encodeStartedAt = performance.now();
     await builder.add(
       rendered.getChannelData(0),
       rendered.numberOfChannels > 1
         ? rendered.getChannelData(1)
         : rendered.getChannelData(0),
     );
+    timing.encode += performance.now() - encodeStartedAt;
 
     segments += 1;
     done = end;
@@ -427,12 +439,20 @@ async function startSegmentedOfflineExport({
 
   elements.exportStatus.textContent = "正在编码完整 WAV……";
   await new Promise((resolve) => requestAnimationFrame(resolve));
+  const saveStartedAt = performance.now();
   const wav = builder.toBlob();
   await downloadExport(wav, parameters);
+  timing.save = performance.now() - saveStartedAt;
   elements.exportProgress.value = 1;
   elements.exportStatus.textContent = `分段导出完成：${(
     builder.frames / state.audioContext.sampleRate
-  ).toFixed(1)} 秒 · ${segments} 段合并 · ${bitDepth}-bit WAV（预计 ${estimatedSegments} 段）`;
+  ).toFixed(1)} 秒 · ${segments} 段合并 · ${bitDepth}-bit WAV（读取 ${(
+    timing.read / 1000
+  ).toFixed(1)}s / 解码 ${(timing.decode / 1000).toFixed(1)}s / 渲染 ${(
+    timing.render / 1000
+  ).toFixed(1)}s / 编码 ${(timing.encode / 1000).toFixed(1)}s / 写盘 ${(
+    timing.save / 1000
+  ).toFixed(1)}s）`;
 }
 
 function isOverDecodeLimit(durationSeconds, sampleRate) {
@@ -550,6 +570,7 @@ function setExportControlsDisabled(disabled) {
     elements.exportDurationSelect,
     elements.exportCustomDuration,
     elements.exportBitDepth,
+    elements.exportQuality,
   ]) {
     control.disabled = disabled;
   }
@@ -967,7 +988,12 @@ async function startSegmentExport() {
   }
 }
 
-function buildOfflineGraph(offlineContext, audioBuffer, parameters) {
+function buildOfflineGraph(
+  offlineContext,
+  audioBuffer,
+  parameters,
+  quality = "precise",
+) {
   const source = offlineContext.createBufferSource();
   source.buffer = audioBuffer;
 
@@ -1010,13 +1036,17 @@ function buildOfflineGraph(offlineContext, audioBuffer, parameters) {
     monoInput.channelCountMode = "explicit";
     monoInput.channelInterpretation = "speakers";
     source.connect(monoInput);
-    const path = createParametricPath(offlineContext, monoInput);
+    const path = createParametricPath(offlineContext, monoInput, {
+      fast: quality === "fast",
+    });
     applyParametricSettings(path, offlineContext, parameters, true);
     path.output.connect(master);
   } else if (state.mode === "binaural") {
     const stereoInput = offlineContext.createGain();
     source.connect(stereoInput);
-    const path = createCompatibilityPath(offlineContext, stereoInput);
+    const path = createCompatibilityPath(offlineContext, stereoInput, {
+      fast: quality === "fast",
+    });
     applyCompatibilitySettings(path, offlineContext, parameters, true);
     path.output.connect(master);
   } else {
@@ -1079,6 +1109,7 @@ async function startOfflineExport() {
 
   const duration = state.audio.duration;
   const bitDepth = Number(elements.exportBitDepth.value);
+  const quality = elements.exportQuality?.value || "precise";
   if (isOverDecodeLimit(duration, state.audioContext.sampleRate)) {
     // 超长文件：MP3 可以按字节切段处理，其它格式只能给明确建议。
     if (!isSliceableSource()) {
@@ -1102,6 +1133,7 @@ async function startOfflineExport() {
       parameters,
       bitDepth,
       durationSeconds: duration,
+      quality,
     });
     setExportControlsDisabled(false);
     return;
@@ -1110,17 +1142,21 @@ async function startOfflineExport() {
   elements.exportStatus.textContent = "正在读取完整源文件……";
   await new Promise((resolve) => requestAnimationFrame(resolve));
 
+  const readStartedAt = performance.now();
   const response = await fetch(state.activeSource.mediaUrl);
   if (!response.ok) {
     throw new Error(`源文件读取失败：${response.status}`);
   }
   const arrayBuffer = await response.arrayBuffer();
+  const readMs = performance.now() - readStartedAt;
   elements.exportStatus.textContent = "正在解码完整音频……";
+  const decodeStartedAt = performance.now();
   const audioBuffer = await decodeAudioBufferFriendly(
     state.audioContext,
     arrayBuffer,
     "请改用「指定片段（实时捕获）」导出，或先用音频工具把文件切成小于 90 分钟的几段。",
   );
+  const decodeMs = performance.now() - decodeStartedAt;
   const durationSeconds = audioBuffer.duration;
   const offlineContext = new OfflineAudioContext(
     2,
@@ -1128,18 +1164,21 @@ async function startOfflineExport() {
     audioBuffer.sampleRate,
   );
 
-  buildOfflineGraph(offlineContext, audioBuffer, parameters);
+  buildOfflineGraph(offlineContext, audioBuffer, parameters, quality);
   scheduleOfflineProgress(offlineContext, durationSeconds);
   elements.exportStatus.textContent = `离线渲染 0.0 / ${durationSeconds.toFixed(
     1,
   )} 秒`;
+  const renderStartedAt = performance.now();
   const rendered = await offlineContext.startRendering();
+  const renderMs = performance.now() - renderStartedAt;
   elements.exportStatus.textContent = "正在编码完整 WAV……";
   await new Promise((resolve) => requestAnimationFrame(resolve));
 
   const left = rendered.getChannelData(0);
   const right =
     rendered.numberOfChannels > 1 ? rendered.getChannelData(1) : rendered.getChannelData(0);
+  const encodeStartedAt = performance.now();
   const wav = await encodeWav(
     left,
     right,
@@ -1152,12 +1191,21 @@ async function startOfflineExport() {
       )}%`;
     },
   );
+  const encodeMs = performance.now() - encodeStartedAt;
+  const saveStartedAt = performance.now();
   await downloadExport(wav, parameters);
+  const saveMs = performance.now() - saveStartedAt;
   setExportControlsDisabled(false);
   elements.exportProgress.value = 1;
   elements.exportStatus.textContent = `完整导出完成：${durationSeconds.toFixed(
     1,
-  )} 秒，${elements.exportBitDepth.value}-bit WAV。`;
+  )} 秒，${elements.exportBitDepth.value}-bit WAV（读取 ${(
+    readMs / 1000
+  ).toFixed(1)}s / 解码 ${(decodeMs / 1000).toFixed(1)}s / 渲染 ${(
+    renderMs / 1000
+  ).toFixed(1)}s / 编码 ${(encodeMs / 1000).toFixed(1)}s / 写盘 ${(
+    saveMs / 1000
+  ).toFixed(1)}s）。`;
 }
 
 async function startExport() {
@@ -1401,20 +1449,37 @@ function setAudioParam(param, value) {
   param.setTargetAtTime(value, state.audioContext.currentTime, 0.025);
 }
 
+const impulseDataCache = new Map();
+
 function createImpulseResponse(audioContext, duration = 1.15, decay = 2.8) {
   const length = Math.floor(audioContext.sampleRate * duration);
-  const impulse = audioContext.createBuffer(2, length, audioContext.sampleRate);
-  for (let channel = 0; channel < impulse.numberOfChannels; channel += 1) {
-    const data = impulse.getChannelData(channel);
-    for (let index = 0; index < length; index += 1) {
-      const envelope = (1 - index / length) ** decay;
-      data[index] = (Math.random() * 2 - 1) * envelope * 0.45;
-    }
+  const key = `${audioContext.sampleRate}:${length}:${decay}`;
+  let channels = impulseDataCache.get(key);
+  if (!channels) {
+    const random = (() => {
+      let state = 0x9e3779b9;
+      return () => {
+        state = (state * 1664525 + 1013904223) >>> 0;
+        return state / 0x100000000;
+      };
+    })();
+    channels = [0, 1].map(() => {
+      const data = new Float32Array(length);
+      for (let index = 0; index < length; index += 1) {
+        const envelope = (1 - index / length) ** decay;
+        data[index] = (random() * 2 - 1) * envelope * 0.45;
+      }
+      return data;
+    });
+    impulseDataCache.set(key, channels);
   }
+  const impulse = audioContext.createBuffer(2, length, audioContext.sampleRate);
+  impulse.copyToChannel(channels[0], 0);
+  impulse.copyToChannel(channels[1], 1);
   return impulse;
 }
 
-function createParametricPath(audioContext, monoInput) {
+function createParametricPath(audioContext, monoInput, { fast = false } = {}) {
   const leftGain = audioContext.createGain();
   const rightGain = audioContext.createGain();
   const leftDelay = audioContext.createDelay(0.01);
@@ -1486,7 +1551,11 @@ function createParametricPath(audioContext, monoInput) {
   merger.connect(dryGain);
   dryGain.connect(output);
 
-  convolver.buffer = createImpulseResponse(audioContext);
+  convolver.buffer = createImpulseResponse(
+    audioContext,
+    fast ? 0.35 : 1.15,
+    fast ? 1.8 : 2.8,
+  );
   reverbSend.connect(convolver);
   convolver.connect(wetGain);
   wetGain.connect(output);
@@ -1514,7 +1583,7 @@ function createParametricPath(audioContext, monoInput) {
   };
 }
 
-function createCompatibilityPath(audioContext, stereoInput) {
+function createCompatibilityPath(audioContext, stereoInput, { fast = false } = {}) {
   const panner = audioContext.createStereoPanner();
   const elevationLow = audioContext.createBiquadFilter();
   const elevationHigh = audioContext.createBiquadFilter();
@@ -1547,7 +1616,11 @@ function createCompatibilityPath(audioContext, stereoInput) {
   distanceGain.connect(dryGain);
   dryGain.connect(output);
 
-  convolver.buffer = createImpulseResponse(audioContext);
+  convolver.buffer = createImpulseResponse(
+    audioContext,
+    fast ? 0.35 : 1.15,
+    fast ? 1.8 : 2.8,
+  );
   distanceGain.connect(reverbSend);
   reverbSend.connect(convolver);
   convolver.connect(wetGain);
@@ -2969,6 +3042,13 @@ function bindControls() {
     state.audio.pause();
     updateProgressUI({ enabled: true });
     setTransportStatus("已停止播放，播放位置已保留。");
+  });
+
+  elements.resetPlaybackButton.addEventListener("click", () => {
+    if (!state.audio) return;
+    state.audio.currentTime = 0;
+    updateProgressUI({ enabled: true });
+    setTransportStatus("已回到开头。");
   });
 
   elements.progressRange.addEventListener("pointerdown", () => {

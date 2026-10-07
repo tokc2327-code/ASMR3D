@@ -78,14 +78,19 @@
                 <input id="fileInput" type="file" accept="audio/*" />
               </label>
               <div class="transport">
-                <button id="playButton" class="btn btn-primary btn-icon btn-play" type="button" aria-label="播放" title="播放（空格）">
-                  <svg class="icon icon-lg" aria-hidden="true"><use href="#i-play" /></svg>
-                </button>
-                <button id="pauseButton" class="btn btn-icon" type="button" aria-label="暂停" title="暂停">
-                  <svg class="icon icon-lg" aria-hidden="true"><use href="#i-pause" /></svg>
-                </button>
+                <div class="transport-toggle">
+                  <button id="playButton" class="btn btn-primary btn-icon btn-play" type="button" aria-label="播放" title="播放（空格）">
+                    <svg class="icon icon-lg" aria-hidden="true"><use href="#i-play" /></svg>
+                  </button>
+                  <button id="pauseButton" class="btn btn-icon" type="button" aria-label="暂停" title="暂停">
+                    <svg class="icon icon-lg" aria-hidden="true"><use href="#i-pause" /></svg>
+                  </button>
+                </div>
                 <button id="stopButton" class="btn btn-icon" type="button" aria-label="停止" title="停止（保留播放位置）">
                   <svg class="icon icon-lg" aria-hidden="true"><use href="#i-stop" /></svg>
+                </button>
+                <button id="resetPlaybackButton" class="btn btn-icon" type="button" aria-label="回到开头" title="回到开头">
+                  <svg class="icon icon-lg" aria-hidden="true"><use href="#i-chevrons-left" /></svg>
                 </button>
               </div>
               <label class="toggle-chip" for="loopToggle">
@@ -159,18 +164,30 @@
                 <span class="field-label">自定义时长（秒）</span>
                 <input id="exportCustomDuration" type="number" min="1" max="3600" step="1" value="30" />
               </label>
-              <label class="field">
-                <span class="field-label">WAV 位深</span>
-                <select id="exportBitDepth">
-                  <option value="16" selected>16-bit PCM</option>
-                  <option value="24">24-bit PCM</option>
-                </select>
-              </label>
+              <div class="field-2col">
+                <label class="field">
+                  <span class="field-label">WAV 位深</span>
+                  <select id="exportBitDepth">
+                    <option value="16" selected>16-bit PCM</option>
+                    <option value="24">24-bit PCM</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span class="field-label">导出质量</span>
+                  <select id="exportQuality">
+                    <option value="precise" selected>精确（推荐）</option>
+                    <option value="fast">快速（缩短渲染时间）</option>
+                  </select>
+                </label>
+              </div>
               <div class="btn-row">
                 <button id="exportButton" class="btn btn-primary" type="button">开始导出</button>
                 <button id="cancelExportButton" class="btn btn-danger-ghost" type="button" disabled>取消</button>
               </div>
-              <progress id="exportProgress" max="1" value="0"></progress>
+              <div class="export-progress-block">
+                <span class="field-label">导出进度</span>
+                <progress id="exportProgress" max="1" value="0"></progress>
+              </div>
               <p class="note" id="exportStatus"></p>
               <p class="note note-tiny" id="exportDirText">成品保存位置：程序目录下的“输出”文件夹</p>
             </div>

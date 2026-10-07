@@ -2014,3 +2014,55 @@ select option {
   color: #fff;
   filter: none;
 }
+
+/* 播放/暂停合并为同一按钮，并增加回到开头。 */
+.transport {
+  grid-template-columns: 1.5fr 1fr 1fr;
+}
+
+.transport-toggle {
+  position: relative;
+  min-height: 36px;
+}
+
+.transport-toggle .btn {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+}
+
+body[data-transport="playing"] #playButton {
+  display: none;
+}
+
+body:not([data-transport="playing"]) #pauseButton {
+  display: none;
+}
+
+#resetPlaybackButton .icon {
+  stroke-width: 2.5;
+}
+
+/* 导出进度独立成行，避免挤压按钮和状态文字。 */
+.export-progress-block {
+  display: grid;
+  gap: 6px;
+  margin: 11px 0 9px;
+}
+
+.export-progress-block progress {
+  height: 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(163, 173, 202, 0.14);
+}
+
+.export-progress-block progress::-webkit-progress-bar {
+  border-radius: 999px;
+  background: rgba(163, 173, 202, 0.14);
+}
+
+:root[data-theme="light"] .export-progress-block progress,
+:root[data-theme="light"] .export-progress-block progress::-webkit-progress-bar {
+  background: rgba(43, 52, 68, 0.12);
+}
