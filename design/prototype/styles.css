@@ -2042,6 +2042,66 @@ input[type="file"],
   stroke: var(--pink-500);
 }
 
+/* 播放/暂停统一为描边式控制：浅色深粉，深色浅粉。 */
+:root {
+  --transport-bg: rgba(31, 36, 49, 0.95);
+  --transport-border: rgba(255, 143, 184, 0.55);
+  --transport-icon: #ffa9cd;
+}
+
+:root[data-theme="light"] {
+  --transport-bg: rgba(255, 255, 255, 0.96);
+  --transport-border: rgba(185, 47, 105, 0.5);
+  --transport-icon: #b92f69;
+}
+
+.transport-toggle .btn,
+.transport-toggle .btn-primary {
+  background: var(--transport-bg);
+  border-color: var(--transport-border);
+  color: var(--transport-icon);
+  opacity: 1;
+  filter: none;
+  box-shadow: none;
+}
+
+.transport-toggle .btn:hover:not(:disabled) {
+  background: var(--pink-soft);
+  border-color: var(--pink-400);
+}
+
+.transport-toggle .icon {
+  color: var(--transport-icon);
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-width: 2.6;
+}
+
+.transport-toggle .icon-lg {
+  width: 18px;
+  height: 18px;
+}
+
+#playButton:disabled,
+#pauseButton:disabled {
+  opacity: 1;
+  background: var(--transport-bg);
+  border-color: var(--transport-border);
+  color: var(--transport-icon);
+  filter: none;
+}
+
+#playButton:disabled .icon,
+#pauseButton:disabled .icon {
+  color: var(--transport-icon);
+  fill: var(--transport-icon);
+  stroke: var(--transport-icon);
+}
+
+body[data-transport="playing"] #playButton {
+  color: var(--transport-icon);
+}
+
 /* 播放/暂停合并为同一按钮，并增加回到开头。 */
 .transport {
   grid-template-columns: 1.5fr 1fr 1fr;

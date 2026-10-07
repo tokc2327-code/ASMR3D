@@ -901,7 +901,7 @@ async function startSegmentExport() {
     return;
   }
 
-  if (state.audio.currentSrc !== state.activeSource.mediaUrl) {
+  if (!isSameMediaSource(state.activeSource)) {
     state.audio.src = state.activeSource.mediaUrl;
   }
   if (state.audio.readyState < 1) {
@@ -1085,7 +1085,7 @@ async function startOfflineExport() {
   const parameters = currentParameters();
   state.audio.pause();
   // 用户可能选完文件就直接导出，此时音频元素还没挂上源文件。
-  if (state.audio.currentSrc !== state.activeSource.mediaUrl) {
+  if (!isSameMediaSource(state.activeSource)) {
     state.audio.src = state.activeSource.mediaUrl;
     state.audio.load();
   }
@@ -2044,6 +2044,17 @@ function setTransportStatus(message) {
   if (elements.transportStatus) elements.transportStatus.textContent = message;
 }
 
+function isSameMediaSource(source) {
+  if (!source?.mediaUrl || !state.audio) return false;
+  try {
+    return (
+      state.audio.currentSrc === new URL(source.mediaUrl, document.baseURI).href
+    );
+  } catch {
+    return state.audio.currentSrc === source.mediaUrl;
+  }
+}
+
 function selectMaterial(item) {
   state.activeSource = item;
   if (state.objectUrl) {
@@ -2111,7 +2122,7 @@ async function togglePlayback() {
   ensureAudioGraph();
   if (!state.activeSource) return;
   switchInputSource("media");
-  if (state.audio.currentSrc !== state.activeSource.mediaUrl) {
+  if (!isSameMediaSource(state.activeSource)) {
     state.audio.src = state.activeSource.mediaUrl;
   }
   if (state.audio.readyState < 1) {
